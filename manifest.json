@@ -1,6 +1,6 @@
 {
 	"manifest_version": 3,
-	"name": "抖星选品",
+	"name": "抖星选品-反编译版",
 	"version": "1.0",
 	"action": {
 		"default_popup": "popup.html",

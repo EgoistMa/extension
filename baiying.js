@@ -7,8 +7,8 @@ function earlyInjectScript() {
     } else {
       injectScriptToPage();
     }
-  } catch (_0x379329) {
-    console.error('【智能选品】初始化注入脚本失败:', _0x379329);
+  } catch (error) {
+    console.error('【智能选品】初始化注入脚本失败:', error);
     setTimeout(earlyInjectScript, 0x64);
   }
 }
@@ -18,48 +18,48 @@ function injectScriptToPage() {
       console.warn('【智能选品】DOM元素尚未准备好，稍后重试');
       return void setTimeout(injectScriptToPage, 0xa);
     }
-    const _0x3cfd59 = document.createElement("script");
-    _0x3cfd59.src = chrome.runtime.getURL('assets/insert.js');
-    (document.head || document.documentElement).appendChild(_0x3cfd59);
-    _0x3cfd59.onload = function () {
+    const script = document.createElement("script");
+    script.src = chrome.runtime.getURL('assets/insert.js');
+    (document.head || document.documentElement).appendChild(script);
+    script.onload = function () {
       console.info('【智能选品】插入的脚本加载成功.');
-      _0x3cfd59.remove();
+      script.remove();
     };
-    _0x3cfd59.onerror = function () {
+    script.onerror = function () {
       console.error("【智能选品】插入的脚本加载失败.");
       setTimeout(injectScriptToPage, 0x3e8);
     };
-  } catch (_0x411c52) {
-    console.error('【智能选品】注入脚本过程出错:', _0x411c52);
+  } catch (error) {
+    console.error('【智能选品】注入脚本过程出错:', error);
   }
 }
 earlyInjectScript();
-window.addEventListener('message', function (_0x388bf0) {
+window.addEventListener('message', function (event) {
   try {
-    if (_0x388bf0.data && _0x388bf0.data.action && 'onPackDetail' === _0x388bf0.data.action) {
-      console.log("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", _0x388bf0.data);
+    if (event.data && event.data.action && 'onPackDetail' === event.data.action) {
+      console.log("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", event.data);
       if (!product_id) {
-        product_id = _0x388bf0.data.data.product_id;
+        product_id = event.data.data.product_id;
         checkUpdateProjectElment();
       }
     }
-  } catch (_0x269956) {
-    console.error("【智能选品】处理页面脚本消息失败:", _0x269956);
+  } catch (error) {
+    console.error("【智能选品】处理页面脚本消息失败:", error);
   }
 }, false);
-chrome.runtime.onMessage.addListener(function (_0x52ea0b, _0x3ccf02, _0xe77407) {
-  if ("dataUpdated" === _0x52ea0b.action) {
+chrome.runtime.onMessage.addListener(function (message) {
+  if ("dataUpdated" === message.action) {
     window.location.reload();
   }
 });
 let user = null;
-function loadUser(_0x90be6d) {
+function loadUser(callback) {
   user = null;
-  chrome.storage.local.get('xuanpin_user', function (_0x28a850) {
-    if (_0x28a850.xuanpin_user) {
-      user = JSON.parse(_0x28a850.xuanpin_user);
+  chrome.storage.local.get('xuanpin_user', function (result) {
+    if (result.xuanpin_user) {
+      user = JSON.parse(result.xuanpin_user);
       console.log("xuanpin_user======>", user);
-      _0x90be6d();
+      callback();
     }
   });
 }
@@ -67,30 +67,30 @@ function loadSharedData() {
   loadUser(init);
 }
 class DouyinWordDetector {
-  constructor(_0x3a94c5) {
-    this.apiUrl = _0x3a94c5;
+  constructor(apiUrl) {
+    this.apiUrl = apiUrl;
   }
-  async ["checkText"](_0x20f0e0, _0x5d0784) {
+  async ["checkText"](text, productId) {
     try {
-      const _0x1b1738 = await fetch(this.apiUrl, {
+      const response = await fetch(this.apiUrl, {
         'method': "POST",
         'headers': {
           'Content-Type': 'application/json'
         },
         'body': JSON.stringify({
-          'text': _0x20f0e0,
-          'product_id': _0x5d0784
+          'text': text,
+          'product_id': productId
         })
       });
-      if (!_0x1b1738.ok) {
-        throw new Error("HTTP error! status: " + _0x1b1738.status);
+      if (!response.ok) {
+        throw new Error("HTTP error! status: " + response.status);
       }
-      return await _0x1b1738.json();
-    } catch (_0x2853ed) {
-      console.error("检测过程中发生错误:", _0x2853ed);
+      return await response.json();
+    } catch (error) {
+      console.error("检测过程中发生错误:", error);
       return {
         'hasViolation': false,
-        'error': _0x2853ed.message
+        'error': error.message
       };
     }
   }
@@ -122,88 +122,88 @@ let productInfo = {
   'detail_url': ''
 };
 function getProductName() {
-  const _0x5c5453 = document.querySelector(".index_module__title____450e");
-  return _0x5c5453 ? _0x5c5453.textContent.trim() : '';
+  const titleElement = document.querySelector(".index_module__title____450e");
+  return titleElement ? titleElement.textContent.trim() : '';
 }
 function getProductInfo() {
   productInfo = {};
   if (!user || !user.id) {
     return void alert("没有登录");
   }
-  const _0x1c8283 = getUrlParam('id');
+  const promotionId = getUrlParam('id');
   productInfo.userId = user.id;
   productInfo.excuteTime = getMidnightTimestamp();
   productInfo.noSelectSevenDay = false;
   productInfo.deleted = 0x0;
-  productInfo.promotion_id = _0x1c8283;
+  productInfo.promotion_id = promotionId;
   productInfo.product_id = product_id;
   console.log('bbbbbbbbbbbbb==>productInfo', productInfo);
-  const _0x3f755c = document.querySelector(".index_module__dataCardContainer____0bd5");
-  if (_0x3f755c) {
-    _0x3f755c.querySelectorAll(".index_module__dataItem____0bd5").forEach(_0x208bb2 => {
-      let _0x16f6da = _0x208bb2.querySelector('.index_module__dataTitle____0bd5');
-      let _0x2c8f1d = null;
-      let _0x490d65 = null;
-      if (_0x16f6da) {
-        _0x2c8f1d = _0x16f6da.textContent.trim();
-        const _0x33efa4 = _0x208bb2.querySelector(".index_module__dataContent____0bd5");
-        if (!_0x33efa4) {
+  const dataContainer = document.querySelector(".index_module__dataCardContainer____0bd5");
+  if (dataContainer) {
+    dataContainer.querySelectorAll(".index_module__dataItem____0bd5").forEach(item => {
+      let titleElement = item.querySelector('.index_module__dataTitle____0bd5');
+      let title = null;
+      let value = null;
+      if (titleElement) {
+        title = titleElement.textContent.trim();
+        const contentElement = item.querySelector(".index_module__dataContent____0bd5");
+        if (!contentElement) {
           return;
         }
-        _0x490d65 = _0x33efa4.textContent.trim();
+        value = contentElement.textContent.trim();
       } else {
-        const _0x40e655 = _0x208bb2.querySelector(".index_module__dataContent____0bd5");
-        if (!_0x40e655) {
+        const contentElement = item.querySelector(".index_module__dataContent____0bd5");
+        if (!contentElement) {
           return;
         }
-        _0x16f6da = _0x40e655.querySelector('span:nth-of-type(1)');
-        if (!_0x16f6da) {
+        titleElement = contentElement.querySelector('span:nth-of-type(1)');
+        if (!titleElement) {
           return;
         }
-        _0x2c8f1d = _0x16f6da.textContent.trim();
-        const _0x2a48cf = _0x40e655.querySelector("span:nth-of-type(2)");
-        if (!_0x2a48cf) {
+        title = titleElement.textContent.trim();
+        const valueElement = contentElement.querySelector("span:nth-of-type(2)");
+        if (!valueElement) {
           return;
         }
-        _0x490d65 = _0x2a48cf.textContent.trim();
+        value = valueElement.textContent.trim();
       }
-      switch (_0x2c8f1d) {
+      switch (title) {
         case '到手价':
-          const _0x5c54b3 = _0x490d65.match(/¥\d+(\.\d+)?/);
-          productInfo.product_price = _0x5c54b3 ? _0x5c54b3[0x0] : '0';
+          const priceMatch = value.match(/¥\d+(\.\d+)?/);
+          productInfo.product_price = priceMatch ? priceMatch[0x0] : '0';
           break;
         case "团长高佣":
         case '专属高佣':
         case '佣金':
-          const _0x531f31 = _0x490d65.match(/\d+(\.\d+)?%/);
-          const _0x46d3aa = _0x490d65.match(/赚\d+(\.\d+)?/);
-          productInfo.cos_ratio = _0x531f31 ? _0x531f31[0x0] : '0';
-          productInfo.cos_fee = _0x46d3aa ? _0x46d3aa[0x0].replace('赚', '¥') : '0';
+          const ratioMatch = value.match(/\d+(\.\d+)?%/);
+          const feeMatch = value.match(/赚\d+(\.\d+)?/);
+          productInfo.cos_ratio = ratioMatch ? ratioMatch[0x0] : '0';
+          productInfo.cos_fee = feeMatch ? feeMatch[0x0].replace('赚', '¥') : '0';
           break;
         case '好评率':
-          productInfo.good_ratio = _0x490d65 || '0';
+          productInfo.good_ratio = value || '0';
           break;
         case '已售':
-          if (_0x490d65 && _0x490d65.includes('万+')) {
-            const _0x1510fa = _0x490d65.replace('万+', '');
-            productInfo.sell_num = (0x2710 * parseFloat(_0x1510fa)).toString();
+          if (value && value.includes('万+')) {
+            const numStr = value.replace('万+', '');
+            productInfo.sell_num = (0x2710 * parseFloat(numStr)).toString();
           } else {
-            productInfo.sell_num = _0x490d65 || '0';
+            productInfo.sell_num = value || '0';
           }
           break;
         case "带货人数":
-          if (_0x490d65 && _0x490d65.includes('万+')) {
-            const _0x41b1c1 = _0x490d65.replace('万+', '');
-            productInfo.author_num = (0x2710 * parseFloat(_0x41b1c1)).toString();
+          if (value && value.includes('万+')) {
+            const numStr = value.replace('万+', '');
+            productInfo.author_num = (0x2710 * parseFloat(numStr)).toString();
           } else {
-            productInfo.author_num = _0x490d65 || '0';
+            productInfo.author_num = value || '0';
           }
       }
     });
     if (!productInfo.product_price) {
-      const _0x5ec135 = document.querySelector(".index_module__dataContent____0bd5 span:nth-child(2)");
-      if (_0x5ec135) {
-        productInfo.product_price = _0x5ec135.textContent.replace('¥', '');
+      const priceElement = document.querySelector(".index_module__dataContent____0bd5 span:nth-child(2)");
+      if (priceElement) {
+        productInfo.product_price = priceElement.textContent.replace('¥', '');
         console.log('新元素中包含价格', productInfo.product_price);
       } else {
         console.log("未找到价格元素");
@@ -212,30 +212,30 @@ function getProductInfo() {
   } else {
     console.error('未找到数据容器，请检查HTML结构或类名是否正确');
   }
-  const _0x438e23 = document.querySelector(".index_module__scoreContainer____1d3f");
-  if (_0x438e23) {
-    const _0x56a633 = _0x438e23.querySelector('.index_module__totalScore____1d3f');
-    if (_0x56a633) {
-      const _0x385c0e = _0x56a633.querySelector('.index_module__bigNum____1d3f');
-      productInfo.service_score = _0x385c0e ? _0x385c0e.textContent.trim() + '分' : '0';
+  const scoreContainer = document.querySelector(".index_module__scoreContainer____1d3f");
+  if (scoreContainer) {
+    const totalScoreElement = scoreContainer.querySelector('.index_module__totalScore____1d3f');
+    if (totalScoreElement) {
+      const bigNumElement = totalScoreElement.querySelector('.index_module__bigNum____1d3f');
+      productInfo.service_score = bigNumElement ? bigNumElement.textContent.trim() + '分' : '0';
     } else {
       productInfo.service_score = '0';
     }
-    const _0x4632e7 = _0x438e23.querySelectorAll(".index_module__detailItem____1d3f");
-    if (_0x4632e7.length > 0x0) {
-      _0x4632e7.forEach(_0xd5d874 => {
-        const _0x274d0a = _0xd5d874.querySelector(".index_module__smallNum____1d3f");
-        const _0x371948 = _0x274d0a ? _0x274d0a.textContent.trim() + '分' : "未获取到分数";
-        const _0x1a1151 = _0xd5d874.querySelector(".index_module__textLine____1d3f");
-        switch (_0x1a1151 ? _0x1a1151.textContent.trim() : '') {
+    const detailItems = scoreContainer.querySelectorAll(".index_module__detailItem____1d3f");
+    if (detailItems.length > 0x0) {
+      detailItems.forEach(detailItem => {
+        const smallNumElement = detailItem.querySelector(".index_module__smallNum____1d3f");
+        const scoreText = smallNumElement ? smallNumElement.textContent.trim() + '分' : "未获取到分数";
+        const textLineElement = detailItem.querySelector(".index_module__textLine____1d3f");
+        switch (textLineElement ? textLineElement.textContent.trim() : '') {
           case '商品':
-            productInfo.goods_score = _0x371948;
+            productInfo.goods_score = scoreText;
             break;
           case '物流':
-            productInfo.logistics_score = _0x371948;
+            productInfo.logistics_score = scoreText;
             break;
           case '商家':
-            productInfo.exper_score = _0x371948;
+            productInfo.exper_score = scoreText;
         }
       });
     } else {
@@ -257,79 +257,79 @@ function getProductInfo() {
   productInfo.service_score = parseFloat(productInfo.service_score?.["replace"](/[^\d.]/g, '') || '0');
   productInfo.product_price = parseFloat(productInfo.product_price?.["replace"](/[^\d.]/g, '') || '0');
   setTimeout(() => {
-    const _0x3ef873 = document.querySelector(".index_module__dataItemContainer____2d98");
-    if (_0x3ef873) {
-      _0x3ef873.querySelectorAll(".index_module__dataItem____45dd").forEach(_0x188980 => {
-        const _0x3a8fa0 = _0x188980.querySelector(".index_module__title____45dd");
-        if (!_0x3a8fa0) {
+    const dataItemContainer = document.querySelector(".index_module__dataItemContainer____2d98");
+    if (dataItemContainer) {
+      dataItemContainer.querySelectorAll(".index_module__dataItem____45dd").forEach(dataItem => {
+        const titleElement = dataItem.querySelector(".index_module__title____45dd");
+        if (!titleElement) {
           return;
         }
-        if ("出单达人数" === _0x3a8fa0.textContent.trim()) {
-          const _0x10201f = _0x188980.querySelectorAll(".index_module__contentItem____45dd");
-          if (!_0x10201f) {
+        if ("出单达人数" === titleElement.textContent.trim()) {
+          const contentItems = dataItem.querySelectorAll(".index_module__contentItem____45dd");
+          if (!contentItems) {
             return;
           }
-          _0x10201f.forEach(_0x347b17 => {
-            if ('视频' === _0x347b17.querySelector('.index_module__contentType____45dd').textContent.trim()) {
-              const _0x31a008 = _0x347b17.querySelector(".index_module__num____45dd");
-              if (_0x31a008) {
-                productInfo.by30.video_match_order_num = _0x31a008.textContent.trim();
+          contentItems.forEach(contentItem => {
+            if ('视频' === contentItem.querySelector('.index_module__contentType____45dd').textContent.trim()) {
+              const numElement = contentItem.querySelector(".index_module__num____45dd");
+              if (numElement) {
+                productInfo.by30.video_match_order_num = numElement.textContent.trim();
               }
             }
           });
         }
       });
-      const _0x4f3356 = document.querySelectorAll(".index_module__dataCardContainer____0bd5");
-      const _0x263617 = (productInfo.by30.video_match_order_num / productInfo.author_num).toFixed(0x2);
+      const dataCardContainers = document.querySelectorAll(".index_module__dataCardContainer____0bd5");
+      const orderRate = (productInfo.by30.video_match_order_num / productInfo.author_num).toFixed(0x2);
       console.log('出单率=====》', productInfo.by30.video_match_order_num, productInfo.author_num);
-      const _0x25bce5 = "\n\t\t\t<div class=\"index_module__dataItem____0bd5\" elementtiming=\"element-timing\" style=\"max-width: 150px; flex: 1 0 auto;\">\n\t\t\t  <div class=\"index_module__dataTitle____0bd5\" elementtiming=\"element-timing\">出单率</div>\n\t\t\t  <div class=\"index_module__dataContent____0bd5\" elementtiming=\"element-timing\">\n\t\t\t    <div elementtiming=\"element-timing\">" + _0x263617 + "</div>\n\t\t\t    <div class=\"index_module__suffix____0bd5 index_module__gap____0bd5\" elementtiming=\"element-timing\" style=\"position: relative; top: 2px;\"></div>\n\t\t\t  </div>\n\t\t\t</div>\n\t\t\t";
-      _0x4f3356.forEach(_0x6f5be8 => {
-        _0x6f5be8.insertAdjacentHTML("beforeend", _0x25bce5);
+      const orderRateHtml = "\n\t\t\t<div class=\"index_module__dataItem____0bd5\" elementtiming=\"element-timing\" style=\"max-width: 150px; flex: 1 0 auto;\">\n\t\t\t  <div class=\"index_module__dataTitle____0bd5\" elementtiming=\"element-timing\">出单率</div>\n\t\t\t  <div class=\"index_module__dataContent____0bd5\" elementtiming=\"element-timing\">\n\t\t\t    <div elementtiming=\"element-timing\">" + orderRate + "</div>\n\t\t\t    <div class=\"index_module__suffix____0bd5 index_module__gap____0bd5\" elementtiming=\"element-timing\" style=\"position: relative; top: 2px;\"></div>\n\t\t\t  </div>\n\t\t\t</div>\n\t\t\t";
+      dataCardContainers.forEach(container => {
+        container.insertAdjacentHTML("beforeend", orderRateHtml);
       });
     } else {
       console.error('未找到出单达人数据容器，请检查HTML类名是否正确');
     }
   }, 0x7d0);
 }
-function getUrlParam(_0xabb760) {
-  const _0x87fad1 = window.location.search.slice(0x1).split('&');
-  for (let _0x5f6f9f of _0x87fad1) {
-    const [_0x5fff9c, _0x42e0ce] = _0x5f6f9f.split('=');
-    if (decodeURIComponent(_0x5fff9c) === _0xabb760) {
-      return decodeURIComponent(_0x42e0ce || '');
+function getUrlParam(paramName) {
+  const params = window.location.search.slice(0x1).split('&');
+  for (let param of params) {
+    const [key, value] = param.split('=');
+    if (decodeURIComponent(key) === paramName) {
+      return decodeURIComponent(value || '');
     }
   }
   return null;
 }
-function createButton(_0xc4116a, _0x34cd2d) {
-  const _0x4df3cf = document.createElement("button");
-  _0x4df3cf.textContent = _0xc4116a;
-  _0x4df3cf.className = "your-custom-button-class";
-  _0x4df3cf.addEventListener('click', _0x34cd2d);
-  return _0x4df3cf;
+function createButton(text, clickHandler) {
+  const button = document.createElement("button");
+  button.textContent = text;
+  button.className = "your-custom-button-class";
+  button.addEventListener('click', clickHandler);
+  return button;
 }
 async function bindTabsClick() {
-  let _0x24ff62 = document.querySelectorAll(".auxo-tabs-tab");
-  for (; !_0x24ff62;) {
+  let tabElements = document.querySelectorAll(".auxo-tabs-tab");
+  for (; !tabElements;) {
     await delay(0x3e8);
-    _0x24ff62 = document.querySelectorAll(".auxo-tabs-tab");
+    tabElements = document.querySelectorAll(".auxo-tabs-tab");
     console.log("等待tab出现");
   }
-  _0x24ff62.forEach(_0x2c38de => {
-    _0x2c38de.addEventListener("click", async () => {
-      const _0x3732b5 = _0x2c38de.querySelector(".auxo-tabs-tab-btn").textContent.trim();
-      console.log("点击了选项卡：" + _0x3732b5);
-      if ("带货内容" == _0x3732b5) {
+  tabElements.forEach(tabElement => {
+    tabElement.addEventListener("click", async () => {
+      const tabText = tabElement.querySelector(".auxo-tabs-tab-btn").textContent.trim();
+      console.log("点击了选项卡：" + tabText);
+      if ("带货内容" == tabText) {
         if (aalock) {
           return;
         }
         aalock = true;
         await insertStringToCardWrappers();
         await insertAiAudioBtn();
-        let _0x39f60b = document.querySelectorAll(".auxo-pagination-item");
-        console.log("pageItems", _0x39f60b.length);
-        _0x39f60b.forEach(_0x53be43 => {
-          _0x53be43.addEventListener("click", async () => {
+        let pageItems = document.querySelectorAll(".auxo-pagination-item");
+        console.log("pageItems", pageItems.length);
+        pageItems.forEach(pageItem => {
+          pageItem.addEventListener("click", async () => {
             console.log("aaa clike");
             setTimeout(async () => {
               await insertStringToCardWrappers();
@@ -343,45 +343,45 @@ async function bindTabsClick() {
   });
 }
 async function insertDownBtns() {
-  const _0x481a62 = await versionChecker.checkVersion();
-  console.log('canContinue', _0x481a62);
-  if (_0x481a62.enable) {
+  const versionCheck = await versionChecker.checkVersion();
+  console.log('canContinue', versionCheck);
+  if (versionCheck.enable) {
     console.log('版本检查通过');
-    waitForElement(".index_module__actionButtons____2fbb", async function (_0x2e90ba) {
+    waitForElement(".index_module__actionButtons____2fbb", async function (actionButtonsContainer) {
       getProductInfo();
-      const _0xd562c2 = document.createElement('button');
-      _0xd562c2.style.marginRight = '10px';
-      _0xd562c2.style.marginTop = "6px";
-      _0xd562c2.style.borderColor = "green";
-      _0xd562c2.style.color = 'green';
-      _0xd562c2.className = "auxo-btn auxo-btn-dashed";
-      _0xd562c2.innerHTML = "<i class=\"fas fa-download mr-1\"></i> 下载图片";
-      const _0x2cd111 = document.createElement('button');
-      _0x2cd111.style.marginRight = "10px";
-      _0x2cd111.style.marginTop = '6px';
-      _0x2cd111.style.borderColor = 'orange';
-      _0x2cd111.style.color = 'orange';
-      _0x2cd111.className = "auxo-btn auxo-btn-dashed";
-      _0x2cd111.innerHTML = "<i class=\"fas fa-download mr-1\"></i> 下载图片(加购物车)";
-      const _0x3aa45e = document.createElement('button');
-      _0x3aa45e.style.marginRight = "10px";
-      _0x3aa45e.style.marginTop = '6px';
-      _0x3aa45e.className = "auxo-btn auxo-btn-dashed";
-      _0x3aa45e.innerHTML = "<i class=\"fas fa-download mr-1\"></i> 下载视频";
-      let _0x36fb36 = getBaiyingImageUrls()[0x0];
-      let _0x1e14a7 = getProductName();
-      let _0x3332de = {
+      const downloadImageBtn = document.createElement('button');
+      downloadImageBtn.style.marginRight = '10px';
+      downloadImageBtn.style.marginTop = "6px";
+      downloadImageBtn.style.borderColor = "green";
+      downloadImageBtn.style.color = 'green';
+      downloadImageBtn.className = "auxo-btn auxo-btn-dashed";
+      downloadImageBtn.innerHTML = "<i class=\"fas fa-download mr-1\"></i> 下载图片";
+      const downloadImageWithCartBtn = document.createElement('button');
+      downloadImageWithCartBtn.style.marginRight = "10px";
+      downloadImageWithCartBtn.style.marginTop = '6px';
+      downloadImageWithCartBtn.style.borderColor = 'orange';
+      downloadImageWithCartBtn.style.color = 'orange';
+      downloadImageWithCartBtn.className = "auxo-btn auxo-btn-dashed";
+      downloadImageWithCartBtn.innerHTML = "<i class=\"fas fa-download mr-1\"></i> 下载图片(加购物车)";
+      const downloadVideoBtn = document.createElement('button');
+      downloadVideoBtn.style.marginRight = "10px";
+      downloadVideoBtn.style.marginTop = '6px';
+      downloadVideoBtn.className = "auxo-btn auxo-btn-dashed";
+      downloadVideoBtn.innerHTML = "<i class=\"fas fa-download mr-1\"></i> 下载视频";
+      let coverImage = getBaiyingImageUrls()[0x0];
+      let productName = getProductName();
+      let projectInfo = {
         'product_id': product_id,
-        'product_name': _0x1e14a7,
-        'cover': _0x36fb36
+        'product_name': productName,
+        'cover': coverImage
       };
-      console.log('baiying_project_info', _0x3332de);
-      _0xd562c2.addEventListener("click", async () => {
-        _0xd562c2.disabled = true;
-        _0xd562c2.innerHTML = "<span>下载中...</span>";
+      console.log('baiying_project_info', projectInfo);
+      downloadImageBtn.addEventListener("click", async () => {
+        downloadImageBtn.disabled = true;
+        downloadImageBtn.innerHTML = "<span>下载中...</span>";
         try {
           chrome.storage.local.set({
-            'baiying_project_info': _0x3332de
+            'baiying_project_info': projectInfo
           }, async () => {
             await checkTitleText(async () => {
               console.log("product_id数据已保存:" + product_id);
@@ -389,18 +389,18 @@ async function insertDownBtns() {
               await downImage();
             });
           });
-        } catch (_0x2b0be8) {
-          console.log('error', _0x2b0be8);
+        } catch (error) {
+          console.log('error', error);
         }
-        _0xd562c2.disabled = false;
-        _0xd562c2.innerHTML = '<span>下载图片</span>';
+        downloadImageBtn.disabled = false;
+        downloadImageBtn.innerHTML = '<span>下载图片</span>';
       });
-      _0x2cd111.addEventListener("click", async () => {
-        _0x2cd111.disabled = true;
-        _0x2cd111.innerHTML = "<span>下载中...</span>";
+      downloadImageWithCartBtn.addEventListener("click", async () => {
+        downloadImageWithCartBtn.disabled = true;
+        downloadImageWithCartBtn.innerHTML = "<span>下载中...</span>";
         try {
           chrome.storage.local.set({
-            'baiying_project_info': _0x3332de
+            'baiying_project_info': projectInfo
           }, async () => {
             await checkTitleText(async () => {
               console.log("product_id数据已保存:" + product_id);
@@ -409,45 +409,45 @@ async function insertDownBtns() {
               triggerButtonClick();
             });
           });
-        } catch (_0xc4e1e8) {
-          console.log("error", _0xc4e1e8);
+        } catch (error) {
+          console.log("error", error);
         }
-        _0x2cd111.disabled = false;
-        _0x2cd111.innerHTML = "<span>下载图片(加购物车)</span>";
+        downloadImageWithCartBtn.disabled = false;
+        downloadImageWithCartBtn.innerHTML = "<span>下载图片(加购物车)</span>";
       });
-      _0x3aa45e.addEventListener("click", async () => {
-        _0x3aa45e.disabled = true;
-        _0x3aa45e.innerHTML = "<span>下载中...</span>";
+      downloadVideoBtn.addEventListener("click", async () => {
+        downloadVideoBtn.disabled = true;
+        downloadVideoBtn.innerHTML = "<span>下载中...</span>";
         try {
           chrome.storage.local.set({
-            'baiying_project_info': _0x3332de
+            'baiying_project_info': projectInfo
           }, async () => {
             await checkTitleText(async () => {
               await saveProject();
               await downMainVideo();
             });
           });
-        } catch (_0x469804) {
-          console.log('error', _0x469804);
+        } catch (error) {
+          console.log('error', error);
         }
-        _0x3aa45e.disabled = false;
-        _0x3aa45e.innerHTML = '<span>下载视频</span>';
+        downloadVideoBtn.disabled = false;
+        downloadVideoBtn.innerHTML = '<span>下载视频</span>';
       });
-      const _0x1b0d89 = document.createElement('button');
-      _0x1b0d89.style.marginRight = "10px";
-      _0x1b0d89.style.marginTop = '6px';
-      _0x1b0d89.style.borderColor = "red";
-      _0x1b0d89.style.color = 'red';
-      _0x1b0d89.className = "auxo-btn auxo-btn-dashed";
-      _0x1b0d89.innerHTML = "<i class=\"fas fa-volume-up mr-1\"></i> 去考古加";
-      _0x1b0d89.addEventListener("click", async () => {
-        const _0x3ec8d2 = document.querySelector(".index_module__title____450e");
-        if (!_0x3ec8d2.textContent.trim()) {
+      const goToKaogujiaBtn = document.createElement('button');
+      goToKaogujiaBtn.style.marginRight = "10px";
+      goToKaogujiaBtn.style.marginTop = '6px';
+      goToKaogujiaBtn.style.borderColor = "red";
+      goToKaogujiaBtn.style.color = 'red';
+      goToKaogujiaBtn.className = "auxo-btn auxo-btn-dashed";
+      goToKaogujiaBtn.innerHTML = "<i class=\"fas fa-volume-up mr-1\"></i> 去考古加";
+      goToKaogujiaBtn.addEventListener("click", async () => {
+        const titleElement = document.querySelector(".index_module__title____450e");
+        if (!titleElement.textContent.trim()) {
           return void alert("没有产品名称");
         }
-        if (_0x3ec8d2.textContent.trim().replace(/[^\u4e00-\u9fa5a-zA-Z0-9\s]/g, '')) {
+        if (titleElement.textContent.trim().replace(/[^\u4e00-\u9fa5a-zA-Z0-9\s]/g, '')) {
           chrome.storage.local.set({
-            'baiying_project_info': _0x3332de
+            'baiying_project_info': projectInfo
           }, async () => {
             window.open("https://www.kaogujia.com/darenSquare/videoList?keyword=" + encodeURIComponent("https://haohuo.jinritemai.com/ecommerce/trade/detail/index.html?id=" + product_id + "%26origin_type=pc_buyin_selection_decision"), "_blank");
           });
@@ -455,69 +455,69 @@ async function insertDownBtns() {
           alert('产品名称不合法');
         }
       });
-      const _0x248086 = document.createElement('button');
-      _0x248086.style.marginRight = "10px";
-      _0x248086.style.marginTop = '6px';
-      _0x248086.style.borderColor = 'red';
-      _0x248086.style.color = 'red';
-      _0x248086.className = "auxo-btn auxo-btn-dashed";
-      _0x248086.innerHTML = "<i class=\"fas fa-volume-up mr-1\"></i> 去抖音";
-      _0x248086.addEventListener("click", async () => {
-        const _0x22dc60 = document.querySelector('.index_module__title____450e');
-        if (!_0x22dc60.textContent.trim()) {
+      const goToDouyinBtn = document.createElement('button');
+      goToDouyinBtn.style.marginRight = "10px";
+      goToDouyinBtn.style.marginTop = '6px';
+      goToDouyinBtn.style.borderColor = 'red';
+      goToDouyinBtn.style.color = 'red';
+      goToDouyinBtn.className = "auxo-btn auxo-btn-dashed";
+      goToDouyinBtn.innerHTML = "<i class=\"fas fa-volume-up mr-1\"></i> 去抖音";
+      goToDouyinBtn.addEventListener("click", async () => {
+        const titleElement = document.querySelector('.index_module__title____450e');
+        if (!titleElement.textContent.trim()) {
           return void alert("没有产品名称");
         }
-        const _0x7703bb = _0x22dc60.textContent.trim().replace(/[^\u4e00-\u9fa5a-zA-Z0-9\s]/g, '');
-        if (_0x7703bb) {
+        const cleanedTitle = titleElement.textContent.trim().replace(/[^\u4e00-\u9fa5a-zA-Z0-9\s]/g, '');
+        if (cleanedTitle) {
           chrome.storage.local.set({
-            'baiying_project_info': _0x3332de
+            'baiying_project_info': projectInfo
           }, async () => {
-            window.open("https://www.douyin.com/root/search/" + encodeURIComponent(_0x7703bb) + "?aid=745ad0ce-6c4e-4551-94eb-71a2a0a0f48e&type=general", '_blank');
+            window.open("https://www.douyin.com/root/search/" + encodeURIComponent(cleanedTitle) + "?aid=745ad0ce-6c4e-4551-94eb-71a2a0a0f48e&type=general", '_blank');
           });
         } else {
           alert("产品名称不合法");
         }
       });
-      _0x2e90ba.insertBefore(_0x248086, _0x2e90ba.firstChild);
+      actionButtonsContainer.insertBefore(goToDouyinBtn, actionButtonsContainer.firstChild);
       if (user && 0x1 == user.show_daren_listen) {
-        _0x2e90ba.insertBefore(_0x1b0d89, _0x2e90ba.firstChild);
+        actionButtonsContainer.insertBefore(goToKaogujiaBtn, actionButtonsContainer.firstChild);
       }
-      _0x2e90ba.insertBefore(_0xd562c2, _0x2e90ba.firstChild);
-      _0x2e90ba.insertBefore(_0x2cd111, _0x2e90ba.firstChild);
-      _0x2e90ba.insertBefore(_0x3aa45e, _0x2e90ba.firstChild);
+      actionButtonsContainer.insertBefore(downloadImageBtn, actionButtonsContainer.firstChild);
+      actionButtonsContainer.insertBefore(downloadImageWithCartBtn, actionButtonsContainer.firstChild);
+      actionButtonsContainer.insertBefore(downloadVideoBtn, actionButtonsContainer.firstChild);
     });
   } else {
     console.log("版本检查未通过");
   }
 }
 function checkUpdateProjectElment() {
-  let _0x4d1c9f;
-  _0x4d1c9f = setInterval(async function () {
+  let checkInterval;
+  checkInterval = setInterval(async function () {
     if (document.querySelector(".index_module__titleContainer____450e")) {
       console.log('商品id目标元素已加载');
       bindTabsClick();
       insertParamsToNode();
       await insertDownBtns();
-      let _0x116b3d = getBaiyingImageUrls()[0x0];
-      let _0x5c51d4 = getProductName();
-      let _0x1ef068 = {
+      let coverImage = getBaiyingImageUrls()[0x0];
+      let productName = getProductName();
+      let projectInfo = {
         'product_id': product_id,
-        'product_name': _0x5c51d4,
-        'cover': _0x116b3d
+        'product_name': productName,
+        'cover': coverImage
       };
-      console.log("checkParamsElement baiying_project_info", _0x1ef068);
+      console.log("checkParamsElement baiying_project_info", projectInfo);
       chrome.storage.local.set({
-        'baiying_project_info': _0x1ef068
+        'baiying_project_info': projectInfo
       }, () => {
         console.log("product_id数据已保存:" + product_id);
       });
-      clearInterval(_0x4d1c9f);
+      clearInterval(checkInterval);
     } else {
       console.log("商品id模板元素未加载");
     }
   }, 0x3e8);
   setTimeout(() => {
-    clearInterval(_0x4d1c9f);
+    clearInterval(checkInterval);
     console.log('清理商品id目标元素');
   }, 0x7530);
 }
@@ -527,53 +527,53 @@ async function init() {
     console.log("获取链接中的id", product_id);
     checkUpdateProjectElment();
   } else {
-    let _0x7288b2;
-    _0x7288b2 = setInterval(function () {
-      const _0x4c6ff0 = document.querySelector('.index_module__copyId____0e09');
-      if (_0x4c6ff0) {
+    let copyIdCheckInterval;
+    copyIdCheckInterval = setInterval(function () {
+      const copyIdButton = document.querySelector('.index_module__copyId____0e09');
+      if (copyIdButton) {
         console.log("目标元素已加载");
-        _0x4c6ff0.click();
+        copyIdButton.click();
         setTimeout(async () => {
           await document.body.focus();
-          const _0x51d53d = await navigator.clipboard.readText();
-          console.log('当前剪贴板内容：', _0x51d53d);
+          const clipboardText = await navigator.clipboard.readText();
+          console.log('当前剪贴板内容：', clipboardText);
           if (!product_id) {
-            product_id = _0x51d53d;
+            product_id = clipboardText;
             checkUpdateProjectElment();
           }
         }, 0x7d0);
-        clearInterval(_0x7288b2);
+        clearInterval(copyIdCheckInterval);
       } else {
         console.log("模板元素未加载");
       }
     }, 0x64);
     setTimeout(() => {
-      clearInterval(_0x7288b2);
+      clearInterval(copyIdCheckInterval);
       console.log("清理目标元素");
     }, 0x7530);
   }
 }
-const waitForElement = (_0x422052, _0x90fe1d) => {
-  const _0x269991 = document.querySelector(_0x422052);
-  if (_0x269991) {
-    return void _0x90fe1d(_0x269991);
+const waitForElement = (selector, callback) => {
+  const element = document.querySelector(selector);
+  if (element) {
+    return void callback(element);
   }
-  const _0x235ac3 = new MutationObserver(_0x4a82b4 => {
-    const _0x17d11c = document.querySelector(_0x422052);
-    if (_0x17d11c) {
-      _0x90fe1d(_0x17d11c);
-      _0x235ac3.disconnect();
+  const observer = new MutationObserver(() => {
+    const foundElement = document.querySelector(selector);
+    if (foundElement) {
+      callback(foundElement);
+      observer.disconnect();
     }
   });
-  _0x235ac3.observe(document.body, {
+  observer.observe(document.body, {
     'childList': true,
     'subtree': true
   });
 };
-async function callDoubaoAPI2(_0x50254f) {
-  const _0x161ad6 = "请根据商品名称，生成一份300字以内的口播文案：参考下面这个文案风格（自然亲切，避免硬广词汇），不要带家人们这种套近乎的词，也不需要提醒赶紧入手：\n\t参考文案：不要再买169一个的坐姿椅了， 科轩尼联合敦煌博物馆一起宠粉了 升级的新款新色， 不仅颜色温柔好看， 支撑力和舒适性也做了提升， 就算200斤也能牢牢撑住！ 人体工学设计， 坐上瞬间就能把腰背给你好好托住， 久坐不会伤腰累腰。 整体克重也做了减轻， 单只手就能轻松提握， 不管是放在椅子上、地上， 甚至躺床上刷手机， 都能垫一个。 有了它， 就算久坐8小时也很轻松刷到！ 活动还在的赶紧来冲！\n商品名称：\n" + _0x50254f;
+async function callDoubaoAPI2(productName) {
+  const prompt = "请根据商品名称，生成一份300字以内的口播文案：参考下面这个文案风格（自然亲切，避免硬广词汇），不要带家人们这种套近乎的词，也不需要提醒赶紧入手：\n\t参考文案：不要再买169一个的坐姿椅了， 科轩尼联合敦煌博物馆一起宠粉了 升级的新款新色， 不仅颜色温柔好看， 支撑力和舒适性也做了提升， 就算200斤也能牢牢撑住！ 人体工学设计， 坐上瞬间就能把腰背给你好好托住， 久坐不会伤腰累腰。 整体克重也做了减轻， 单只手就能轻松提握， 不管是放在椅子上、地上， 甚至躺床上刷手机， 都能垫一个。 有了它， 就算久坐8小时也很轻松刷到！ 活动还在的赶紧来冲！\n商品名称：\n" + productName;
   try {
-    const _0x4a980f = await fetch("https://ark.cn-beijing.volces.com/api/v3/chat/completions", {
+    const response = await fetch("https://ark.cn-beijing.volces.com/api/v3/chat/completions", {
       'method': "POST",
       'headers': {
         'Content-Type': "application/json",
@@ -586,25 +586,25 @@ async function callDoubaoAPI2(_0x50254f) {
           'content': "你是一个专业的口播文案撰写者，擅长创作简洁、有吸引力的产品介绍文案。"
         }, {
           'role': 'user',
-          'content': _0x161ad6
+          'content': prompt
         }],
         'temperature': 0.7,
         'max_tokens': 0x12c
       })
     });
-    if (!_0x4a980f.ok) {
-      throw new Error("HTTP错误! 状态码: " + _0x4a980f.status);
+    if (!response.ok) {
+      throw new Error("HTTP错误! 状态码: " + response.status);
     }
-    return (await _0x4a980f.json()).choices[0x0].message.content;
-  } catch (_0x543832) {
-    console.error("调用API时出错:", _0x543832);
-    throw _0x543832;
+    return (await response.json()).choices[0x0].message.content;
+  } catch (error) {
+    console.error("调用API时出错:", error);
+    throw error;
   }
 }
-async function callDoubaoAPI(_0x5a8abd) {
-  const _0x3df0bc = "请根据以下参考文案，生成一份70秒以内的口播文案。内容要口语化、有感染力，能够突出产品特点和促销信息：\n    \n参考文案：\n" + _0x5a8abd;
+async function callDoubaoAPI(referenceText) {
+  const prompt = "请根据以下参考文案，生成一份70秒以内的口播文案。内容要口语化、有感染力，能够突出产品特点和促销信息：\n    \n参考文案：\n" + referenceText;
   try {
-    const _0x52634a = await fetch('https://ark.cn-beijing.volces.com/api/v3/chat/completions', {
+    const response = await fetch('https://ark.cn-beijing.volces.com/api/v3/chat/completions', {
       'method': "POST",
       'headers': {
         'Content-Type': "application/json",
@@ -617,22 +617,22 @@ async function callDoubaoAPI(_0x5a8abd) {
           'content': "你是一个专业的口播文案撰写者，擅长创作简洁、有吸引力的产品介绍文案。"
         }, {
           'role': "user",
-          'content': _0x3df0bc
+          'content': prompt
         }],
         'temperature': 0.7,
         'max_tokens': 0x12c
       })
     });
-    if (!_0x52634a.ok) {
-      throw new Error("HTTP错误! 状态码: " + _0x52634a.status);
+    if (!response.ok) {
+      throw new Error("HTTP错误! 状态码: " + response.status);
     }
-    return (await _0x52634a.json()).choices[0x0].message.content;
-  } catch (_0x3b6cc5) {
-    console.error("调用API时出错:", _0x3b6cc5);
-    throw _0x3b6cc5;
+    return (await response.json()).choices[0x0].message.content;
+  } catch (error) {
+    console.error("调用API时出错:", error);
+    throw error;
   }
 }
-async function callTtsApi(_0x4b2635) {
+async function callTtsApi(text) {
   try {
     if (!productInfo.userId) {
       return void alert("未登录，请重新登录");
@@ -640,114 +640,114 @@ async function callTtsApi(_0x4b2635) {
     if (!productInfo.excuteTime) {
       return void alert("执行批次不正确，请检查");
     }
-    const _0x454783 = await fetch('https://zmapi.umyw.cn/tts_proxy.php', {
+    const response = await fetch('https://zmapi.umyw.cn/tts_proxy.php', {
       'method': "POST",
       'headers': {
         'Content-Type': "application/json"
       },
       'body': JSON.stringify({
-        'text': _0x4b2635 || "字节跳动语音合成"
+        'text': text || "字节跳动语音合成"
       })
     });
-    if (!_0x454783.ok) {
-      throw new Error("HTTP错误! 状态码: " + _0x454783.status);
+    if (!response.ok) {
+      throw new Error("HTTP错误! 状态码: " + response.status);
     }
-    const _0x10009a = await _0x454783.json();
-    console.log("API响应:", _0x10009a);
-    if (_0x10009a && _0x10009a.data) {
-      const _0x46c388 = atob(_0x10009a.data);
-      const _0x19869c = new ArrayBuffer(_0x46c388.length);
-      const _0x2ee2dd = new Uint8Array(_0x19869c);
-      for (let _0x4a18b9 = 0x0; _0x4a18b9 < _0x46c388.length; _0x4a18b9++) {
-        _0x2ee2dd[_0x4a18b9] = _0x46c388.charCodeAt(_0x4a18b9);
+    const result = await response.json();
+    console.log("API响应:", result);
+    if (result && result.data) {
+      const binaryString = atob(result.data);
+      const arrayBuffer = new ArrayBuffer(binaryString.length);
+      const uint8Array = new Uint8Array(arrayBuffer);
+      for (let i = 0x0; i < binaryString.length; i++) {
+        uint8Array[i] = binaryString.charCodeAt(i);
       }
-      const _0xc7777f = new Blob([_0x19869c], {
+      const blob = new Blob([arrayBuffer], {
         'type': "audio/mp3"
       });
-      const _0x46c27e = URL.createObjectURL(_0xc7777f);
-      const _0x1725c0 = document.createElement('a');
-      _0x1725c0.href = _0x46c27e;
-      _0x1725c0.download = productInfo.userId + '_' + productInfo.excuteTime + '_' + product_id + '_audio_1.mp3';
-      document.body.appendChild(_0x1725c0);
-      _0x1725c0.click();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = productInfo.userId + '_' + productInfo.excuteTime + '_' + product_id + '_audio_1.mp3';
+      document.body.appendChild(link);
+      link.click();
       setTimeout(() => {
-        document.body.removeChild(_0x1725c0);
-        URL.revokeObjectURL(_0x46c27e);
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
       }, 0x64);
     }
-  } catch (_0x19ed27) {
-    console.error("调用API时出错:", _0x19ed27);
-    throw _0x19ed27;
+  } catch (error) {
+    console.error("调用API时出错:", error);
+    throw error;
   }
 }
 async function insertAiAudioBtn() {
-  const _0x1d3261 = document.querySelectorAll(".index_module__leftButton____1821");
-  if (_0x1d3261.length > 0x0) {
-    _0x1d3261.forEach((_0x4274c4, _0x3c0b01) => {
-      _0x4274c4.addEventListener("click", function () {
-        waitForElement(".auxo-modal-footer", _0x43858a => {
-          const _0xee5f7 = document.createElement("button");
-          _0xee5f7.type = "button";
-          _0xee5f7.className = "auxo-btn auxo-btn-primary";
-          _0xee5f7.innerHTML = "<span>生成AI音频</span>";
-          _0x43858a.insertBefore(_0xee5f7, _0x43858a.firstChild);
-          _0xee5f7.addEventListener("click", async () => {
+  const leftButtons = document.querySelectorAll(".index_module__leftButton____1821");
+  if (leftButtons.length > 0x0) {
+    leftButtons.forEach((leftButton) => {
+      leftButton.addEventListener("click", function () {
+        waitForElement(".auxo-modal-footer", modalFooter => {
+          const aiAudioBtn = document.createElement("button");
+          aiAudioBtn.type = "button";
+          aiAudioBtn.className = "auxo-btn auxo-btn-primary";
+          aiAudioBtn.innerHTML = "<span>生成AI音频</span>";
+          modalFooter.insertBefore(aiAudioBtn, modalFooter.firstChild);
+          aiAudioBtn.addEventListener("click", async () => {
             try {
-              _0xee5f7.disabled = true;
-              _0xee5f7.innerHTML = '<span>生成中...</span>';
-              const _0x4060ef = document.querySelectorAll('.index_module__actionRow___b5587');
-              let _0xbd4da2 = '';
-              if (_0x4060ef.length >= 0x2) {
-                const _0x4e9f1a = _0x4060ef[0x1].querySelector(".index_module__contentArea___b5587");
-                if (_0x4e9f1a) {
-                  _0x4e9f1a.querySelectorAll("[elementtiming=\"element-timing\"]").forEach(_0x22bbd6 => {
-                    _0xbd4da2 += _0x22bbd6.textContent.trim() + "\n";
+              aiAudioBtn.disabled = true;
+              aiAudioBtn.innerHTML = '<span>生成中...</span>';
+              const actionRows = document.querySelectorAll('.index_module__actionRow___b5587');
+              let contentText = '';
+              if (actionRows.length >= 0x2) {
+                const contentArea = actionRows[0x1].querySelector(".index_module__contentArea___b5587");
+                if (contentArea) {
+                  contentArea.querySelectorAll("[elementtiming=\"element-timing\"]").forEach(element => {
+                    contentText += element.textContent.trim() + "\n";
                   });
-                  _0xbd4da2 = _0xbd4da2.slice(0x0, -0x1);
+                  contentText = contentText.slice(0x0, -0x1);
                 }
               }
-              console.log(_0xbd4da2);
-              const _0x507469 = await callDoubaoAPI(_0xbd4da2);
-              console.log("result", _0x507469);
-              await callTtsApi(_0x507469);
-              _0xee5f7.disabled = false;
-              _0xee5f7.innerHTML = "<span>生成AI音频</span>";
-            } catch (_0x533c87) {
-              console.error("生成口播失败:", _0x533c87);
-              alert("生成口播失败: " + _0x533c87.message);
-              _0xee5f7.disabled = false;
-              _0xee5f7.innerHTML = "<span>生成AI音频</span>";
+              console.log(contentText);
+              const generatedScript = await callDoubaoAPI(contentText);
+              console.log("result", generatedScript);
+              await callTtsApi(generatedScript);
+              aiAudioBtn.disabled = false;
+              aiAudioBtn.innerHTML = "<span>生成AI音频</span>";
+            } catch (error) {
+              console.error("生成口播失败:", error);
+              alert("生成口播失败: " + error.message);
+              aiAudioBtn.disabled = false;
+              aiAudioBtn.innerHTML = "<span>生成AI音频</span>";
             }
           });
-          const _0x2e1314 = document.createElement("button");
-          _0x2e1314.type = "button";
-          _0x2e1314.className = "auxo-btn auxo-btn-primary";
-          _0x2e1314.innerHTML = "<span>生成音频</span>";
-          _0x43858a.insertBefore(_0x2e1314, _0x43858a.firstChild);
-          _0x2e1314.addEventListener("click", async () => {
+          const audioBtn = document.createElement("button");
+          audioBtn.type = "button";
+          audioBtn.className = "auxo-btn auxo-btn-primary";
+          audioBtn.innerHTML = "<span>生成音频</span>";
+          modalFooter.insertBefore(audioBtn, modalFooter.firstChild);
+          audioBtn.addEventListener("click", async () => {
             try {
-              _0x2e1314.disabled = true;
-              _0x2e1314.innerHTML = "<span>生成中...</span>";
-              const _0xc2938e = document.querySelectorAll(".index_module__actionRow___b5587");
-              let _0x2f2f3f = '';
-              if (_0xc2938e.length >= 0x2) {
-                const _0x89e552 = _0xc2938e[0x1].querySelector(".index_module__contentArea___b5587");
-                if (_0x89e552) {
-                  _0x89e552.querySelectorAll("[elementtiming=\"element-timing\"]").forEach(_0xac4d42 => {
-                    _0x2f2f3f += _0xac4d42.textContent.trim() + "\n";
+              audioBtn.disabled = true;
+              audioBtn.innerHTML = "<span>生成中...</span>";
+              const actionRows = document.querySelectorAll(".index_module__actionRow___b5587");
+              let contentText = '';
+              if (actionRows.length >= 0x2) {
+                const contentArea = actionRows[0x1].querySelector(".index_module__contentArea___b5587");
+                if (contentArea) {
+                  contentArea.querySelectorAll("[elementtiming=\"element-timing\"]").forEach(element => {
+                    contentText += element.textContent.trim() + "\n";
                   });
-                  _0x2f2f3f = _0x2f2f3f.slice(0x0, -0x1);
+                  contentText = contentText.slice(0x0, -0x1);
                 }
               }
-              console.log(_0x2f2f3f);
-              await callTtsApi(_0x2f2f3f);
-              _0xee5f7.disabled = false;
-              _0xee5f7.innerHTML = "<span>生成音频</span>";
-            } catch (_0x3b6895) {
-              console.error("生成口播文案失败:", _0x3b6895);
-              alert("生成口播文案失败: " + _0x3b6895.message);
-              _0xee5f7.disabled = false;
-              _0xee5f7.innerHTML = "<span>生成音频</span>";
+              console.log(contentText);
+              await callTtsApi(contentText);
+              aiAudioBtn.disabled = false;
+              aiAudioBtn.innerHTML = "<span>生成音频</span>";
+            } catch (error) {
+              console.error("生成口播文案失败:", error);
+              alert("生成口播文案失败: " + error.message);
+              aiAudioBtn.disabled = false;
+              aiAudioBtn.innerHTML = "<span>生成音频</span>";
             }
           });
         });
@@ -757,105 +757,105 @@ async function insertAiAudioBtn() {
     console.warn("未找到任何左侧按钮元素");
   }
 }
-function showCopySuccessAlert(_0x19afa1) {
-  const _0x599d55 = document.createElement("div");
-  _0x599d55.textContent = _0x19afa1;
-  _0x599d55.classList.add('copy-success-alert');
-  document.body.appendChild(_0x599d55);
+function showCopySuccessAlert(message) {
+  const alertDiv = document.createElement("div");
+  alertDiv.textContent = message;
+  alertDiv.classList.add('copy-success-alert');
+  document.body.appendChild(alertDiv);
   setTimeout(() => {
-    _0x599d55.remove();
+    alertDiv.remove();
   }, 0xbb8);
 }
-function showCopyErrorAlert(_0x441265) {
-  const _0x56d63e = document.createElement("div");
-  _0x56d63e.textContent = _0x441265;
-  _0x56d63e.classList.add('copy-error-alert');
-  document.body.appendChild(_0x56d63e);
+function showCopyErrorAlert(message) {
+  const alertDiv = document.createElement("div");
+  alertDiv.textContent = message;
+  alertDiv.classList.add('copy-error-alert');
+  document.body.appendChild(alertDiv);
   setTimeout(() => {
-    _0x56d63e.remove();
+    alertDiv.remove();
   }, 0xbb8);
 }
 function insertParamsToNode() {
-  const _0x17eab6 = document.querySelector(".index_module__titleContainer____450e");
-  if (_0x17eab6) {
-    const _0x370645 = document.createElement("span");
-    _0x370645.textContent = '' + product_id;
-    _0x370645.classList.add("param-style");
-    _0x370645.addEventListener("click", () => {
-      navigator.clipboard.writeText(_0x370645.textContent).then(() => {
+  const titleContainer = document.querySelector(".index_module__titleContainer____450e");
+  if (titleContainer) {
+    const productIdSpan = document.createElement("span");
+    productIdSpan.textContent = '' + product_id;
+    productIdSpan.classList.add("param-style");
+    productIdSpan.addEventListener("click", () => {
+      navigator.clipboard.writeText(productIdSpan.textContent).then(() => {
         console.log("复制成功");
-        showCopySuccessAlert(_0x370645.textContent + "复制成功");
-      })["catch"](_0x5cf3da => {
-        console.error("复制失败:", _0x5cf3da);
+        showCopySuccessAlert(productIdSpan.textContent + "复制成功");
+      })["catch"](error => {
+        console.error("复制失败:", error);
       });
     });
-    const _0x565715 = document.createElement("div");
-    _0x565715.textContent = "修改下载目录";
-    _0x565715.classList.add("delete-button-style");
-    _0x565715.addEventListener("click", async () => {
+    const setDirectoryBtn = document.createElement("div");
+    setDirectoryBtn.textContent = "修改下载目录";
+    setDirectoryBtn.classList.add("delete-button-style");
+    setDirectoryBtn.addEventListener("click", async () => {
       console.log("修改下载目录");
       chrome.runtime.sendMessage({
         'action': "setDirectory"
-      }, _0x52be46 => {
-        console.log("setDirectory Response:", _0x52be46);
+      }, response => {
+        console.log("setDirectory Response:", response);
       });
     });
-    const _0x4c8288 = document.createElement("div");
-    _0x4c8288.textContent = '删除';
-    _0x4c8288.classList.add("delete-button-style");
-    _0x4c8288.addEventListener("click", async () => {
+    const deleteBtn = document.createElement("div");
+    deleteBtn.textContent = '删除';
+    deleteBtn.classList.add("delete-button-style");
+    deleteBtn.addEventListener("click", async () => {
       console.log("开始删除");
       try {
         if (!user || !user.id) {
           return void alert("没有登录");
         }
-        const _0x15c921 = await fetch("https://zmapi.umyw.cn/delete_data.php?userId=" + user.id + "&product_id=" + product_id);
-        if (!_0x15c921.ok) {
+        const response = await fetch("https://zmapi.umyw.cn/delete_data.php?userId=" + user.id + "&product_id=" + product_id);
+        if (!response.ok) {
           throw new Error("请求失败");
         }
-        if ("success" === (await _0x15c921.json()).status) {
+        if ("success" === (await response.json()).status) {
           showCopySuccessAlert(product_id + "删除成功");
         }
-      } catch (_0x5ce56a) {
-        console.error("查询失败: " + _0x5ce56a.message);
+      } catch (error) {
+        console.error("查询失败: " + error.message);
       }
     });
-    const _0x15de38 = document.createElement("div");
-    _0x15de38.classList.add("param-container");
-    _0x15de38.appendChild(_0x370645);
-    _0x15de38.appendChild(_0x4c8288);
-    _0x15de38.appendChild(_0x565715);
-    _0x17eab6.appendChild(_0x15de38);
+    const paramContainer = document.createElement("div");
+    paramContainer.classList.add("param-container");
+    paramContainer.appendChild(productIdSpan);
+    paramContainer.appendChild(deleteBtn);
+    paramContainer.appendChild(setDirectoryBtn);
+    titleContainer.appendChild(paramContainer);
   }
 }
-function customEncode(_0x203b20) {
-  const _0x163df2 = Array.from(_0x203b20).map(_0x23e107 => _0x23e107.charCodeAt(0x0));
-  const _0x660218 = new Array(0x10).fill(0x0);
-  _0x163df2.forEach((_0x54c9d0, _0x194d2d) => {
-    const _0x528549 = _0x194d2d % 0x10;
-    _0x660218[_0x528549] = (_0x660218[_0x528549] + _0x54c9d0) % 0x100;
+function customEncode(text) {
+  const charCodes = Array.from(text).map(char => char.charCodeAt(0x0));
+  const hashArray = new Array(0x10).fill(0x0);
+  charCodes.forEach((charCode, index) => {
+    const position = index % 0x10;
+    hashArray[position] = (hashArray[position] + charCode) % 0x100;
   });
-  return _0x660218.map(_0x29bb48 => _0x29bb48.toString(0x10).padStart(0x2, '0')).join('').substring(0x0, 0x10);
+  return hashArray.map(value => value.toString(0x10).padStart(0x2, '0')).join('').substring(0x0, 0x10);
 }
 function getBaiyingImageUrls() {
   try {
-    const _0x1226a0 = [];
-    const _0x44cc0f = document.querySelector("div.slick-track");
-    if (_0x44cc0f) {
-      const _0x28b741 = _0x44cc0f.querySelectorAll("img");
-      console.log("获取到图片标签数: " + _0x28b741.length);
-      const _0x1e5139 = document.querySelector("div.index_module__mainContent___ac928");
-      const _0x5118b3 = !!_0x1e5139 && null !== _0x1e5139.querySelector('video');
-      let _0x41a9c7 = false;
-      _0x28b741.forEach((_0x50b361, _0x381b31) => {
-        if (_0x5118b3 && 0x0 === _0x381b31 && !_0x41a9c7) {
+    const imageUrls = [];
+    const slickTrack = document.querySelector("div.slick-track");
+    if (slickTrack) {
+      const images = slickTrack.querySelectorAll("img");
+      console.log("获取到图片标签数: " + images.length);
+      const mainContent = document.querySelector("div.index_module__mainContent___ac928");
+      const hasVideo = !!mainContent && null !== mainContent.querySelector('video');
+      let hasSkippedFirst = false;
+      images.forEach((image, index) => {
+        if (hasVideo && 0x0 === index && !hasSkippedFirst) {
           console.log('跳过第一个图片，因为主内容区域包含视频元素');
-          return void (_0x41a9c7 = true);
+          return void (hasSkippedFirst = true);
         }
-        const _0x5e422c = _0x50b361.getAttribute("src");
-        if (_0x5e422c) {
-          const _0x4c520c = new URL(_0x5e422c, window.location.href).href;
-          _0x1226a0.push(_0x4c520c);
+        const imgSrc = image.getAttribute("src");
+        if (imgSrc) {
+          const fullUrl = new URL(imgSrc, window.location.href).href;
+          imageUrls.push(fullUrl);
         } else {
           console.log('未获取到img_src属性');
         }
@@ -863,118 +863,118 @@ function getBaiyingImageUrls() {
     } else {
       console.log("未获取到slick-track元素");
     }
-    return _0x1226a0;
-  } catch (_0x314e0c) {
-    console.error("发生错误:", _0x314e0c);
+    return imageUrls;
+  } catch (error) {
+    console.error("发生错误:", error);
     return [];
   }
 }
-function getVideoUrlFromParent(_0x2aa723) {
-  const _0x3d37cb = _0x2aa723.closest(".index_module__cardWrapper____3c42");
-  if (_0x3d37cb) {
-    const _0x37782e = _0x3d37cb.querySelector("video");
-    if (_0x37782e) {
-      const _0x26eb87 = _0x37782e.src;
-      const _0x253345 = _0x37782e.querySelector('source');
-      return (_0x253345 ? _0x253345.src : null) || _0x26eb87;
+function getVideoUrlFromParent(element) {
+  const cardWrapper = element.closest(".index_module__cardWrapper____3c42");
+  if (cardWrapper) {
+    const videoElement = cardWrapper.querySelector("video");
+    if (videoElement) {
+      const videoSrc = videoElement.src;
+      const sourceElement = videoElement.querySelector('source');
+      return (sourceElement ? sourceElement.src : null) || videoSrc;
     }
   }
   return null;
 }
 async function getMainVideoUrlFromParent() {
-  const _0x2ab56c = (await new Promise(_0x1cec1c => {
-    waitForElement(".index_module__mainContent___ac928", _0x1cec1c);
+  const videoElement = (await new Promise(resolve => {
+    waitForElement(".index_module__mainContent___ac928", resolve);
   })).querySelector('video');
-  if (!_0x2ab56c) {
+  if (!videoElement) {
     return void alert("未找到视频元素");
   }
-  const _0x1fb756 = _0x2ab56c.src;
-  return _0x1fb756 ? (console.log("获取到视频源:", _0x1fb756), _0x1fb756) : null;
+  const videoSrc = videoElement.src;
+  return videoSrc ? (console.log("获取到视频源:", videoSrc), videoSrc) : null;
 }
-async function downloadResource(_0x5c16f7, _0x2cc97b, _0x32c80f = '') {
-  const _0x20cc42 = _0x32c80f ? _0x32c80f + '/' + _0x2cc97b : _0x2cc97b;
+async function downloadResource(url, filename, directory = '') {
+  const fullPath = directory ? directory + '/' + filename : filename;
   try {
-    if (!_0x5c16f7 || !_0x5c16f7.startsWith("http")) {
-      throw new Error("无效的URL: " + _0x5c16f7);
+    if (!url || !url.startsWith("http")) {
+      throw new Error("无效的URL: " + url);
     }
-    console.log("开始下载: " + _0x20cc42);
-    const _0x31420a = await fetch(_0x5c16f7, {
+    console.log("开始下载: " + fullPath);
+    const response = await fetch(url, {
       'method': "GET",
       'mode': "cors",
       'credentials': "same-origin"
     });
-    if (!_0x31420a.ok) {
-      throw new Error("下载失败: " + _0x31420a.status + " " + _0x31420a.statusText);
+    if (!response.ok) {
+      throw new Error("下载失败: " + response.status + " " + response.statusText);
     }
-    const _0x1f4138 = _0x31420a.headers.get("Content-Type");
-    const _0x166a78 = _0x31420a.headers.get("Content-Length");
-    console.log("info", '响应信息：类型=' + _0x1f4138 + '，预计大小=' + (_0x166a78 ? (_0x166a78 / 0x400 / 0x400).toFixed(0x2) + 'MB' : '未知'));
-    if (!_0x1f4138?.["startsWith"]('video/')) {
-      const _0x3326bd = await _0x31420a.blob();
-      const _0x4af81c = document.createElement('a');
-      _0x4af81c.href = URL.createObjectURL(_0x3326bd);
-      _0x4af81c.download = _0x20cc42;
-      _0x4af81c.style.display = 'none';
-      document.body.appendChild(_0x4af81c);
-      _0x4af81c.click();
+    const contentType = response.headers.get("Content-Type");
+    const contentLength = response.headers.get("Content-Length");
+    console.log("info", '响应信息：类型=' + contentType + '，预计大小=' + (contentLength ? (contentLength / 0x400 / 0x400).toFixed(0x2) + 'MB' : '未知'));
+    if (!contentType?.["startsWith"]('video/')) {
+      const blob = await response.blob();
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = fullPath;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
       setTimeout(() => {
-        document.body.removeChild(_0x4af81c);
-        URL.revokeObjectURL(_0x4af81c.href);
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
       }, 0x3e8);
       return {
         'success': true,
-        'filename': _0x20cc42
+        'filename': fullPath
       };
     }
-    const _0x7d53a1 = _0x31420a.body.getReader();
-    const _0x97af4c = [];
-    let _0x559604 = 0x0;
+    const reader = response.body.getReader();
+    const chunks = [];
+    let bytesRead = 0x0;
     for (console.log("info", '开始分块读取数据...');;) {
       const {
-        done: _0x26f0e0,
-        value: _0xff65fe
-      } = await _0x7d53a1.read();
-      if (_0x26f0e0) {
+        done,
+        value
+      } = await reader.read();
+      if (done) {
         break;
       }
-      _0x97af4c.push(_0xff65fe);
-      _0x559604 += _0xff65fe.byteLength;
-      if (_0x166a78) {
-        const _0xb7f72 = _0x559604 / _0x166a78 * 0x64;
-        if (_0xb7f72 % 0xa < 0.1 || _0x559604 % 0x500000 < 0x400) {
-          console.log("info", "下载进度: " + _0xb7f72.toFixed(0x1) + "% (" + (_0x559604 / 0x400 / 0x400).toFixed(0x2) + "MB/" + (_0x166a78 / 0x400 / 0x400).toFixed(0x2) + "MB)");
+      chunks.push(value);
+      bytesRead += value.byteLength;
+      if (contentLength) {
+        const progress = bytesRead / contentLength * 0x64;
+        if (progress % 0xa < 0.1 || bytesRead % 0x500000 < 0x400) {
+          console.log("info", "下载进度: " + progress.toFixed(0x1) + "% (" + (bytesRead / 0x400 / 0x400).toFixed(0x2) + "MB/" + (contentLength / 0x400 / 0x400).toFixed(0x2) + "MB)");
         }
       } else {
-        console.log("info", "已读取: " + (_0x559604 / 0x400 / 0x400).toFixed(0x2) + 'MB');
+        console.log("info", "已读取: " + (bytesRead / 0x400 / 0x400).toFixed(0x2) + 'MB');
       }
     }
-    if (_0x166a78 && _0x559604 !== parseInt(_0x166a78)) {
-      throw new Error("数据不完整：实际读取" + _0x559604 + "字节，预期" + _0x166a78 + '字节');
+    if (contentLength && bytesRead !== parseInt(contentLength)) {
+      throw new Error("数据不完整：实际读取" + bytesRead + "字节，预期" + contentLength + '字节');
     }
-    console.log("info", '分块读取完成，共' + _0x97af4c.length + '块，开始合并为Blob');
-    const _0x31e381 = new Blob(_0x97af4c, {
-      'type': _0x1f4138
+    console.log("info", '分块读取完成，共' + chunks.length + '块，开始合并为Blob');
+    const blob = new Blob(chunks, {
+      'type': contentType
     });
-    const _0x46757d = document.createElement('a');
-    _0x46757d.href = URL.createObjectURL(_0x31e381);
-    _0x46757d.download = _0x20cc42;
-    _0x46757d.style.display = 'none';
-    document.body.appendChild(_0x46757d);
-    _0x46757d.click();
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = fullPath;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
     setTimeout(() => {
-      document.body.removeChild(_0x46757d);
-      URL.revokeObjectURL(_0x46757d.href);
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
     }, 0x3e8);
     return {
       'success': true,
-      'filename': _0x20cc42
+      'filename': fullPath
     };
-  } catch (_0x49bf4f) {
-    console.error("下载 " + _0x20cc42 + " 失败:", _0x49bf4f);
+  } catch (error) {
+    console.error("下载 " + fullPath + " 失败:", error);
     return {
       'success': false,
-      'filename': _0x20cc42,
-      'error': _0x49bf4f.message
+      'filename': fullPath,
+      'error': error.message
     };
   }
 }
@@ -984,9 +984,9 @@ async function downImage() {
   if (productInfo.userId) {
     if (productInfo.excuteTime) {
       if (!image_is_down) {
-        getBaiyingImageUrls().forEach(async (_0x2e20c2, _0x433b07) => {
-          const _0x6bef2e = productInfo.userId + '_' + productInfo.excuteTime + '_' + product_id + "_image_" + (_0x433b07 + 0x1) + ".jpg";
-          await downloadResource(_0x2e20c2, _0x6bef2e);
+        getBaiyingImageUrls().forEach(async (imageUrl, index) => {
+          const filename = productInfo.userId + '_' + productInfo.excuteTime + '_' + product_id + "_image_" + (index + 0x1) + ".jpg";
+          await downloadResource(imageUrl, filename);
         });
         image_is_down = true;
       }
@@ -1004,34 +1004,34 @@ async function downMainVideo() {
   if (!productInfo.excuteTime) {
     return void alert("执行批次不正确，请检查");
   }
-  let _0x3ea2cc = await getMainVideoUrlFromParent();
-  if (_0x3ea2cc) {
-    await downloadResource(_0x3ea2cc, productInfo.userId + '_' + productInfo.excuteTime + '_' + product_id + "_video_1.mp4");
+  let videoUrl = await getMainVideoUrlFromParent();
+  if (videoUrl) {
+    await downloadResource(videoUrl, productInfo.userId + '_' + productInfo.excuteTime + '_' + product_id + "_video_1.mp4");
   }
 }
-async function extractPageResources(_0x28f269, _0x5528d3) {
+async function extractPageResources(event, videoNumber) {
   if (!productInfo.userId) {
     return void alert("未登录，请重新登录");
   }
   if (!productInfo.excuteTime) {
     return void alert('执行批次不正确，请检查');
   }
-  let _0x139352 = getVideoUrlFromParent(_0x28f269.target);
-  if (_0x139352) {
-    await downloadResource(_0x139352, productInfo.userId + '_' + productInfo.excuteTime + '_' + product_id + '_video_' + _0x5528d3 + '.mp4');
+  let videoUrl = getVideoUrlFromParent(event.target);
+  if (videoUrl) {
+    await downloadResource(videoUrl, productInfo.userId + '_' + productInfo.excuteTime + '_' + product_id + '_video_' + videoNumber + '.mp4');
   }
   await downImage();
 }
 function getMidnightTimestamp() {
-  const _0x324a10 = new Date();
-  return new Date(_0x324a10.getFullYear(), _0x324a10.getMonth(), _0x324a10.getDate()).getTime();
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
 }
 function triggerButtonClick() {
-  const _0x3c9eb3 = document.querySelector(".index_module__actionButtons____2fbb");
-  if (_0x3c9eb3) {
-    const _0xdd681d = _0x3c9eb3.querySelector(".auxo-btn-primary");
-    if (_0xdd681d) {
-      _0xdd681d.click();
+  const actionButtonsContainer = document.querySelector(".index_module__actionButtons____2fbb");
+  if (actionButtonsContainer) {
+    const primaryButton = actionButtonsContainer.querySelector(".auxo-btn-primary");
+    if (primaryButton) {
+      primaryButton.click();
       console.log('已触发按钮点击事件');
     } else {
       console.error("未找到class为\"auxo-btn-primary\"的按钮元素");
@@ -1040,59 +1040,59 @@ function triggerButtonClick() {
     console.error("未找到class为\"index_module__actionButtons____2fbb\"的父容器元素");
   }
 }
-async function checkTitleText(_0x1ff2a9) {
+async function checkTitleText(callback) {
   if (!product_id) {
     return void alert('商品id数据缺失，请刷新后重试');
   }
-  const _0x490ddf = document.querySelector('.index_module__title____450e');
-  if (!_0x490ddf.textContent.trim()) {
+  const titleElement = document.querySelector('.index_module__title____450e');
+  if (!titleElement.textContent.trim()) {
     return void alert("没有产品名称");
   }
-  const _0x5abe44 = new DouyinWordDetector("http://zmapi.umyw.cn/word_filter_api.php");
-  console.log('产品名:', _0x490ddf.textContent.trim());
-  const _0x4a6ffa = await _0x5abe44.checkText(_0x490ddf.textContent.trim(), product_id);
-  console.log("检测结果:", _0x4a6ffa);
-  let _0xde72c8 = '';
-  if (_0x4a6ffa.hasWordViolation) {
-    _0xde72c8 += "检测到违规词[" + _0x4a6ffa.matchedWord + "]，是否继续执行？";
+  const detector = new DouyinWordDetector("http://zmapi.umyw.cn/word_filter_api.php");
+  console.log('产品名:', titleElement.textContent.trim());
+  const checkResult = await detector.checkText(titleElement.textContent.trim(), product_id);
+  console.log("检测结果:", checkResult);
+  let warningMessage = '';
+  if (checkResult.hasWordViolation) {
+    warningMessage += "检测到违规词[" + checkResult.matchedWord + "]，是否继续执行？";
   }
-  if (_0x4a6ffa.hasProductViolation) {
-    _0xde72c8 += "检测到违规产品[" + _0x4a6ffa.matchedProductId + "]，是否继续执行？";
+  if (checkResult.hasProductViolation) {
+    warningMessage += "检测到违规产品[" + checkResult.matchedProductId + "]，是否继续执行？";
   }
-  if (_0xde72c8) {
-    const _0x2850de = document.createElement('div');
-    _0x2850de.style.cssText = "\n\t\t    position: fixed;\n\t\t    top: 50%;\n\t\t    left: 50%;\n\t\t    transform: translate(-50%, -50%);\n\t\t    background: white;\n\t\t    padding: 20px;\n\t\t    border-radius: 8px;\n\t\t    box-shadow: 0 4px 16px rgba(0,0,0,0.2);\n\t\t    z-index: 9999;\n\t\t    min-width: 300px;\n\t\t    font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif;\n\t\t  ";
-    const _0x2f6caf = document.createElement('p');
-    _0x2f6caf.textContent = _0xde72c8;
-    _0x2f6caf.style.cssText = "margin: 0 0 15px; font-size: 15px;";
-    const _0x514e46 = document.createElement('div');
-    _0x514e46.style.cssText = "display: flex; justify-content: flex-end; gap: 10px;";
-    const _0x5c0bda = document.createElement("button");
-    _0x5c0bda.textContent = '继续';
-    _0x5c0bda.style.cssText = "\n\t\t    background: #4CAF50;\n\t\t    color: white;\n\t\t    border: none;\n\t\t    padding: 8px 16px;\n\t\t    border-radius: 4px;\n\t\t    cursor: pointer;\n\t\t    font-size: 14px;\n\t\t  ";
-    const _0x51aaf1 = document.createElement("button");
-    _0x51aaf1.textContent = '取消';
-    _0x51aaf1.style.cssText = "\n\t\t    background: #f44336;\n\t\t    color: white;\n\t\t    border: none;\n\t\t    padding: 8px 16px;\n\t\t    border-radius: 4px;\n\t\t    cursor: pointer;\n\t\t    font-size: 14px;\n\t\t  ";
-    _0x514e46.appendChild(_0x51aaf1);
-    _0x514e46.appendChild(_0x5c0bda);
-    _0x2850de.appendChild(_0x2f6caf);
-    _0x2850de.appendChild(_0x514e46);
-    const _0x4bdbb7 = document.createElement('div');
-    _0x4bdbb7.style.cssText = "\n\t\t    position: fixed;\n\t\t    top: 0;\n\t\t    left: 0;\n\t\t    width: 100%;\n\t\t    height: 100%;\n\t\t    background: rgba(0,0,0,0.5);\n\t\t    z-index: 9998;\n\t\t  ";
-    document.body.appendChild(_0x4bdbb7);
-    document.body.appendChild(_0x2850de);
-    _0x51aaf1.addEventListener('click', () => {
-      document.body.removeChild(_0x4bdbb7);
-      document.body.removeChild(_0x2850de);
+  if (warningMessage) {
+    const modalDialog = document.createElement('div');
+    modalDialog.style.cssText = "\n\t\t    position: fixed;\n\t\t    top: 50%;\n\t\t    left: 50%;\n\t\t    transform: translate(-50%, -50%);\n\t\t    background: white;\n\t\t    padding: 20px;\n\t\t    border-radius: 8px;\n\t\t    box-shadow: 0 4px 16px rgba(0,0,0,0.2);\n\t\t    z-index: 9999;\n\t\t    min-width: 300px;\n\t\t    font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif;\n\t\t  ";
+    const messagePara = document.createElement('p');
+    messagePara.textContent = warningMessage;
+    messagePara.style.cssText = "margin: 0 0 15px; font-size: 15px;";
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.cssText = "display: flex; justify-content: flex-end; gap: 10px;";
+    const continueBtn = document.createElement("button");
+    continueBtn.textContent = '继续';
+    continueBtn.style.cssText = "\n\t\t    background: #4CAF50;\n\t\t    color: white;\n\t\t    border: none;\n\t\t    padding: 8px 16px;\n\t\t    border-radius: 4px;\n\t\t    cursor: pointer;\n\t\t    font-size: 14px;\n\t\t  ";
+    const cancelBtn = document.createElement("button");
+    cancelBtn.textContent = '取消';
+    cancelBtn.style.cssText = "\n\t\t    background: #f44336;\n\t\t    color: white;\n\t\t    border: none;\n\t\t    padding: 8px 16px;\n\t\t    border-radius: 4px;\n\t\t    cursor: pointer;\n\t\t    font-size: 14px;\n\t\t  ";
+    buttonContainer.appendChild(cancelBtn);
+    buttonContainer.appendChild(continueBtn);
+    modalDialog.appendChild(messagePara);
+    modalDialog.appendChild(buttonContainer);
+    const overlay = document.createElement('div');
+    overlay.style.cssText = "\n\t\t    position: fixed;\n\t\t    top: 0;\n\t\t    left: 0;\n\t\t    width: 100%;\n\t\t    height: 100%;\n\t\t    background: rgba(0,0,0,0.5);\n\t\t    z-index: 9998;\n\t\t  ";
+    document.body.appendChild(overlay);
+    document.body.appendChild(modalDialog);
+    cancelBtn.addEventListener('click', () => {
+      document.body.removeChild(overlay);
+      document.body.removeChild(modalDialog);
       throw new Error("用户取消操作");
     });
-    _0x5c0bda.addEventListener("click", () => {
-      document.body.removeChild(_0x4bdbb7);
-      document.body.removeChild(_0x2850de);
-      _0x1ff2a9();
+    continueBtn.addEventListener("click", () => {
+      document.body.removeChild(overlay);
+      document.body.removeChild(modalDialog);
+      callback();
     });
   } else {
-    await _0x1ff2a9();
+    await callback();
   }
 }
 async function saveProject() {
@@ -1102,7 +1102,7 @@ async function saveProject() {
   }
   productInfo.by30 = JSON.stringify(productInfo.by30);
   try {
-    const _0x2a99e6 = await fetch("https://zmapi.umyw.cn/save_data.php", {
+    const response = await fetch("https://zmapi.umyw.cn/save_data.php", {
       'method': "POST",
       'headers': {
         'Authorization': "Bearer " + user.token,
@@ -1110,14 +1110,14 @@ async function saveProject() {
       },
       'body': JSON.stringify(productInfo)
     });
-    const _0x395bfa = await _0x2a99e6.json();
-    if ("success" === _0x395bfa.status) {
-      console.log("【智能选品】数据保存成功！ID：" + _0x395bfa.data.id);
+    const result = await response.json();
+    if ("success" === result.status) {
+      console.log("【智能选品】数据保存成功！ID：" + result.data.id);
       showCopySuccessAlert('成功');
     } else {
-      console.error("【智能选品】保存错误：", _0x395bfa.message);
-      showCopyErrorAlert(_0x395bfa.message);
-      if (_0x395bfa.code && 0x191 == _0x395bfa.code) {
+      console.error("【智能选品】保存错误：", result.message);
+      showCopyErrorAlert(result.message);
+      if (result.code && 0x191 == result.code) {
         chrome.storage.local.remove('xuanpin_user', function () {
           console.log("已删除 xuanpin_user");
           user = null;
@@ -1125,91 +1125,91 @@ async function saveProject() {
         });
       }
     }
-  } catch (_0x34ba12) {
-    console.error('【智能选品】捕获到异常：', _0x34ba12.message);
-    showCopyErrorAlert(_0x34ba12.message);
+  } catch (error) {
+    console.error('【智能选品】捕获到异常：', error.message);
+    showCopyErrorAlert(error.message);
   }
 }
-async function downRes(_0x57c41d, _0x258a5a) {
+async function downRes(event, videoNumber) {
   await checkTitleText(async () => {
     await saveProject();
-    await extractPageResources(_0x57c41d, _0x258a5a);
+    await extractPageResources(event, videoNumber);
   });
 }
 async function insertStringToCardWrappers() {
-  let _0x51ec11 = document.querySelector('.index_module__cardContainer____3c42');
-  if (!_0x51ec11) {
-    for (await delay(0x64); !_0x51ec11;) {
+  let cardContainer = document.querySelector('.index_module__cardContainer____3c42');
+  if (!cardContainer) {
+    for (await delay(0x64); !cardContainer;) {
       await delay(0x64);
-      _0x51ec11 = document.querySelector('.index_module__cardContainer____3c42');
+      cardContainer = document.querySelector('.index_module__cardContainer____3c42');
     }
   }
-  let _0xb8ec84 = _0x51ec11.querySelectorAll(".index_module__contentCard____1821");
-  if (!_0xb8ec84) {
-    for (await delay(0x64); !_0xb8ec84;) {
+  let contentCards = cardContainer.querySelectorAll(".index_module__contentCard____1821");
+  if (!contentCards) {
+    for (await delay(0x64); !contentCards;) {
       await delay(0x64);
-      _0xb8ec84 = _0x51ec11.querySelectorAll('.index_module__contentCard____1821');
+      contentCards = cardContainer.querySelectorAll('.index_module__contentCard____1821');
     }
   }
-  for (let _0x112088 = 0x0; _0x112088 < _0xb8ec84.length; _0x112088++) {
-    const _0x5f1027 = _0xb8ec84[_0x112088];
-    if (_0x5f1027.querySelector('.param-style')) {
+  for (let i = 0x0; i < contentCards.length; i++) {
+    const contentCard = contentCards[i];
+    if (contentCard.querySelector('.param-style')) {
       continue;
     }
     await delay(0x64);
-    let _0x24593d = _0x5f1027.querySelector('.index_module__name____1821');
-    for (; !_0x24593d;) {
+    let nameElement = contentCard.querySelector('.index_module__name____1821');
+    for (; !nameElement;) {
       await delay(0x64);
-      _0x24593d = _0x5f1027.querySelector('.index_module__name____1821');
+      nameElement = contentCard.querySelector('.index_module__name____1821');
     }
-    const _0xe1610c = _0x5f1027.querySelector(".index_module__publishTime____1821");
-    const _0x1563a6 = _0x5f1027.querySelector(".index_module__descLine____1821");
-    if (!customEncode(_0x24593d.textContent.trim() + _0xe1610c.textContent.trim() + _0x1563a6.textContent.trim())) {
+    const publishTimeElement = contentCard.querySelector(".index_module__publishTime____1821");
+    const descLineElement = contentCard.querySelector(".index_module__descLine____1821");
+    if (!customEncode(nameElement.textContent.trim() + publishTimeElement.textContent.trim() + descLineElement.textContent.trim())) {
       continue;
     }
-    const _0x55d1d0 = document.createElement('button');
-    _0x55d1d0.textContent = "下载1";
-    _0x55d1d0.classList.add("select-button-style");
-    _0x55d1d0.addEventListener('click', async _0x27788f => {
-      _0x55d1d0.disabled = true;
-      _0x55d1d0.innerHTML = "<span>下载中...</span>";
-      await downRes(_0x27788f, 0x1);
-      _0x55d1d0.disabled = false;
-      _0x55d1d0.innerHTML = "<span>下载1</span>";
+    const download1Btn = document.createElement('button');
+    download1Btn.textContent = "下载1";
+    download1Btn.classList.add("select-button-style");
+    download1Btn.addEventListener('click', async event => {
+      download1Btn.disabled = true;
+      download1Btn.innerHTML = "<span>下载中...</span>";
+      await downRes(event, 0x1);
+      download1Btn.disabled = false;
+      download1Btn.innerHTML = "<span>下载1</span>";
     });
-    const _0x548678 = document.createElement("button");
-    _0x548678.textContent = '下载2';
-    _0x548678.classList.add("select-button-style");
-    _0x548678.addEventListener('click', async _0x3aed29 => {
-      _0x548678.disabled = true;
-      _0x548678.innerHTML = "<span>下载中...</span>";
-      await downRes(_0x3aed29, 0x2);
-      _0x548678.disabled = false;
-      _0x548678.innerHTML = "<span>下载2</span>";
+    const download2Btn = document.createElement("button");
+    download2Btn.textContent = '下载2';
+    download2Btn.classList.add("select-button-style");
+    download2Btn.addEventListener('click', async event => {
+      download2Btn.disabled = true;
+      download2Btn.innerHTML = "<span>下载中...</span>";
+      await downRes(event, 0x2);
+      download2Btn.disabled = false;
+      download2Btn.innerHTML = "<span>下载2</span>";
     });
-    const _0x3c448d = document.createElement("button");
-    _0x3c448d.textContent = "下载3";
-    _0x3c448d.classList.add("select-button-style");
-    _0x3c448d.addEventListener('click', async _0x5b0c44 => {
-      _0x3c448d.disabled = true;
-      _0x3c448d.innerHTML = "<span>下载中...</span>";
-      await downRes(_0x5b0c44, 0x3);
-      _0x3c448d.disabled = false;
-      _0x3c448d.innerHTML = "<span>下载3</span>";
+    const download3Btn = document.createElement("button");
+    download3Btn.textContent = "下载3";
+    download3Btn.classList.add("select-button-style");
+    download3Btn.addEventListener('click', async event => {
+      download3Btn.disabled = true;
+      download3Btn.innerHTML = "<span>下载中...</span>";
+      await downRes(event, 0x3);
+      download3Btn.disabled = false;
+      download3Btn.innerHTML = "<span>下载3</span>";
     });
-    const _0x3cafa5 = document.createElement("div");
-    _0x3cafa5.classList.add("param-container");
-    _0x3cafa5.appendChild(_0x55d1d0);
-    _0x3cafa5.appendChild(_0x548678);
-    _0x3cafa5.appendChild(_0x3c448d);
-    _0x5f1027.prepend(_0x3cafa5);
+    const buttonContainer = document.createElement("div");
+    buttonContainer.classList.add("param-container");
+    buttonContainer.appendChild(download1Btn);
+    buttonContainer.appendChild(download2Btn);
+    buttonContainer.appendChild(download3Btn);
+    contentCard.prepend(buttonContainer);
   }
-  const _0x4c0592 = document.createElement("button");
-  _0x4c0592.textContent = '下载全部视频';
-  _0x4c0592.classList.add("select-button-style");
-  _0x4c0592.classList.add('download-all-videos-button');
-  const _0x4c6c56 = document.createElement("button");
-  async function _0x39f0c2(_0x482427, _0x4e1c7d) {
+  const downloadAllBtn = document.createElement("button");
+  downloadAllBtn.textContent = '下载全部视频';
+  downloadAllBtn.classList.add("select-button-style");
+  downloadAllBtn.classList.add('download-all-videos-button');
+  const downloadCurrentPageBtn = document.createElement("button");
+  async function downloadSingleVideo(cardElement, videoIndex) {
     if (!productInfo.userId) {
       alert('未登录，请重新登录');
       return false;
@@ -1219,140 +1219,140 @@ async function insertStringToCardWrappers() {
       return false;
     }
     try {
-      const _0x22b585 = _0x482427.querySelector('video');
-      let _0xa59fc0 = null;
-      if (_0x22b585) {
-        const _0xaf3fd4 = _0x22b585.src;
-        const _0xa85b26 = _0x22b585.querySelector("source");
-        _0xa59fc0 = _0xa85b26 ? _0xa85b26.src : _0xaf3fd4;
+      const videoElement = cardElement.querySelector('video');
+      let videoUrl = null;
+      if (videoElement) {
+        const videoSrc = videoElement.src;
+        const sourceElement = videoElement.querySelector("source");
+        videoUrl = sourceElement ? sourceElement.src : videoSrc;
       }
-      if (_0xa59fc0 && _0xa59fc0.startsWith("http")) {
-        await downloadResource(_0xa59fc0, productInfo.userId + '_' + productInfo.excuteTime + '_' + product_id + "_video_" + _0x4e1c7d + ".mp4");
+      if (videoUrl && videoUrl.startsWith("http")) {
+        await downloadResource(videoUrl, productInfo.userId + '_' + productInfo.excuteTime + '_' + product_id + "_video_" + videoIndex + ".mp4");
         return true;
       }
       throw new Error('未找到有效的视频URL');
-    } catch (_0xc74db8) {
-      console.error("下载第 " + _0x4e1c7d + " 个视频失败:", _0xc74db8);
+    } catch (error) {
+      console.error("下载第 " + videoIndex + " 个视频失败:", error);
       return false;
     }
   }
-  async function _0x449301(_0x44507e = 0x0) {
-    let _0x2a11b6 = 0x0;
-    let _0x2d9e73 = 0x0;
-    let _0x5bef09 = [];
+  async function downloadAllVideosOnPage(indexOffset = 0x0) {
+    let successCount = 0x0;
+    let failCount = 0x0;
+    let videoCards = [];
     try {
-      console.log("开始下载全部视频，起始索引偏移: " + _0x44507e);
-      const _0x413503 = document.querySelector('.index_module__cardContainer____3c42');
-      if (!_0x413503) {
+      console.log("开始下载全部视频，起始索引偏移: " + indexOffset);
+      const cardContainer = document.querySelector('.index_module__cardContainer____3c42');
+      if (!cardContainer) {
         alert("未找到视频卡片容器");
         return {
-          'successCount': _0x2a11b6,
-          'failCount': _0x2d9e73,
+          'successCount': successCount,
+          'failCount': failCount,
           'totalCount': 0x0
         };
       }
-      _0x5bef09 = _0x413503.querySelectorAll('.index_module__contentCard____1821');
-      let _0x3c9f8b = 0x0;
-      for (; 0x0 === _0x5bef09.length && _0x3c9f8b < 0x5;) {
+      videoCards = cardContainer.querySelectorAll('.index_module__contentCard____1821');
+      let retryCount = 0x0;
+      for (; 0x0 === videoCards.length && retryCount < 0x5;) {
         await delay(0x64);
-        _0x5bef09 = _0x413503.querySelectorAll('.index_module__contentCard____1821');
-        _0x3c9f8b++;
+        videoCards = cardContainer.querySelectorAll('.index_module__contentCard____1821');
+        retryCount++;
       }
-      if (0x0 === _0x5bef09.length) {
+      if (0x0 === videoCards.length) {
         alert("未找到视频卡片");
         return {
-          'successCount': _0x2a11b6,
-          'failCount': _0x2d9e73,
+          'successCount': successCount,
+          'failCount': failCount,
           'totalCount': 0x0
         };
       }
-      console.log("找到 " + _0x5bef09.length + " 个视频卡片，开始批量下载");
-      for (let _0x516ebc = 0x0; _0x516ebc < _0x5bef09.length; _0x516ebc++) {
-        const _0xbcab6f = _0x5bef09[_0x516ebc];
-        const _0x246f7c = _0x44507e + _0x516ebc + 0x1;
+      console.log("找到 " + videoCards.length + " 个视频卡片，开始批量下载");
+      for (let i = 0x0; i < videoCards.length; i++) {
+        const currentCard = videoCards[i];
+        const videoIndex = indexOffset + i + 0x1;
         try {
-          if (await _0x39f0c2(_0xbcab6f, _0x246f7c)) {
-            _0x2a11b6++;
+          if (await downloadSingleVideo(currentCard, videoIndex)) {
+            successCount++;
           } else {
-            _0x2d9e73++;
+            failCount++;
           }
-        } catch (_0x5c678e) {
-          _0x2d9e73++;
-          console.error("下载第 " + _0x246f7c + " 个视频失败:", _0x5c678e);
+        } catch (error) {
+          failCount++;
+          console.error("下载第 " + videoIndex + " 个视频失败:", error);
         }
         await delay(0x1f4);
       }
       return {
-        'successCount': _0x2a11b6,
-        'failCount': _0x2d9e73,
-        'totalCount': _0x5bef09.length
+        'successCount': successCount,
+        'failCount': failCount,
+        'totalCount': videoCards.length
       };
-    } catch (_0x17ea6c) {
-      console.error("批量下载过程中出错:", _0x17ea6c);
+    } catch (error) {
+      console.error("批量下载过程中出错:", error);
       return {
-        'successCount': _0x2a11b6,
-        'failCount': _0x2d9e73,
-        'totalCount': _0x5bef09.length,
-        'error': _0x17ea6c.message
+        'successCount': successCount,
+        'failCount': failCount,
+        'totalCount': videoCards.length,
+        'error': error.message
       };
     }
   }
-  async function _0x338061() {
+  async function downloadAllVideosAcrossPages() {
     console.log("开始分页下载所有视频");
-    let _0x2f0f34 = 0x0;
-    _0x2f0f34 += (await _0x449301(_0x2f0f34)).totalCount;
-    const _0x408448 = document.querySelector(".auxo-pagination");
-    if (!_0x408448) {
+    let totalVideoCount = 0x0;
+    totalVideoCount += (await downloadAllVideosOnPage(totalVideoCount)).totalCount;
+    const paginationContainer = document.querySelector(".auxo-pagination");
+    if (!paginationContainer) {
       return void console.log("未找到分页元素");
     }
-    const _0x56fcd2 = _0x408448.querySelectorAll(".auxo-pagination-item");
-    const _0x3414c6 = [];
-    for (let _0x365548 = 0x0; _0x365548 < _0x56fcd2.length; _0x365548++) {
-      if (_0x56fcd2[_0x365548].classList.contains("auxo-pagination-item-1")) {
+    const paginationItems = paginationContainer.querySelectorAll(".auxo-pagination-item");
+    const pageLinks = [];
+    for (let i = 0x0; i < paginationItems.length; i++) {
+      if (paginationItems[i].classList.contains("auxo-pagination-item-1")) {
         continue;
       }
-      const _0x2f14e6 = _0x56fcd2[_0x365548].querySelector('a');
-      if (_0x2f14e6) {
-        _0x3414c6.push(_0x2f14e6);
+      const pageLink = paginationItems[i].querySelector('a');
+      if (pageLink) {
+        pageLinks.push(pageLink);
       }
     }
-    console.log("找到 " + _0x3414c6.length + " 个分页标签需要处理");
-    for (let _0x1007e4 = 0x0; _0x1007e4 < _0x3414c6.length; _0x1007e4++) {
-      console.log("处理第 " + (_0x1007e4 + 0x1) + " 个分页标签");
-      _0x3414c6[_0x1007e4].click();
+    console.log("找到 " + pageLinks.length + " 个分页标签需要处理");
+    for (let pageIndex = 0x0; pageIndex < pageLinks.length; pageIndex++) {
+      console.log("处理第 " + (pageIndex + 0x1) + " 个分页标签");
+      pageLinks[pageIndex].click();
       await delay(0x7d0);
-      _0x2f0f34 += (await _0x449301(_0x2f0f34)).totalCount;
+      totalVideoCount += (await downloadAllVideosOnPage(totalVideoCount)).totalCount;
     }
     console.log("所有分页的视频下载完成");
     alert("所有分页的视频下载完成！");
   }
-  _0x4c6c56.textContent = "下载当前页面视频";
-  _0x4c6c56.classList.add("select-button-style");
-  _0x4c6c56.classList.add('download-all-videos-button');
-  _0x4c0592.addEventListener('click', async () => {
-    _0x4c0592.disabled = true;
-    _0x4c0592.innerHTML = "<span>分页下载中...</span>";
+  downloadCurrentPageBtn.textContent = "下载当前页面视频";
+  downloadCurrentPageBtn.classList.add("select-button-style");
+  downloadCurrentPageBtn.classList.add('download-all-videos-button');
+  downloadAllBtn.addEventListener('click', async () => {
+    downloadAllBtn.disabled = true;
+    downloadAllBtn.innerHTML = "<span>分页下载中...</span>";
     try {
-      await _0x338061();
-    } catch (_0x3a2675) {
-      console.error('分页下载过程中出错:', _0x3a2675);
+      await downloadAllVideosAcrossPages();
+    } catch (error) {
+      console.error('分页下载过程中出错:', error);
       alert("分页下载过程中发生错误，请重试");
     } finally {
-      _0x4c0592.disabled = false;
-      _0x4c0592.innerHTML = "<span>下载全部视频</span>";
+      downloadAllBtn.disabled = false;
+      downloadAllBtn.innerHTML = "<span>下载全部视频</span>";
     }
   });
-  _0x4c6c56.addEventListener("click", async () => {
-    _0x4c6c56.disabled = true;
-    _0x4c6c56.innerHTML = '<span>分页下载中...</span>';
+  downloadCurrentPageBtn.addEventListener("click", async () => {
+    downloadCurrentPageBtn.disabled = true;
+    downloadCurrentPageBtn.innerHTML = '<span>分页下载中...</span>';
     try {
-      await _0x338061();
-    } catch (_0x508bdb) {
-      console.error('分页下载过程中出错:', _0x508bdb);
+      await downloadAllVideosAcrossPages();
+    } catch (error) {
+      console.error('分页下载过程中出错:', error);
       alert("分页下载过程中发生错误，请重试");
     } finally {
-      _0x4c6c56.disabled = false;
-      _0x4c6c56.innerHTML = "<span>下载全部视频</span>";
+      downloadCurrentPageBtn.disabled = false;
+      downloadCurrentPageBtn.innerHTML = "<span>下载全部视频</span>";
     }
   });
 }
