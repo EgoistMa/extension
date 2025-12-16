@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>抖音智能选品</title>
+		<link rel="stylesheet" href="styles.css">
+	</head>
+	<body>
+		<!-- 新增头部容器 -->
+		<div class="header-container">
+			<div style="display: flex;align-items: center;">
+				<h3 style="margin: 0;">抖音智能选品</h3>
+				<span style="margin-left: 10px;">软件版本：<text id="version_name"></text></span>
+			</div>
+
+			<div id="user-status" class="user-info"> 
+				<span id="username-display">请登录</span>
+				<a href="#" id="logout-btn" style="color: #165DFF; cursor: pointer;">退出</a>
+			</div>
+		</div>
+
+		<!-- 登录模态框 -->
+		<div class="login-modal" id="login-modal">
+			<div class="login-form-container">
+				<h4 class="form-label" style="margin-bottom: 12px;">用户登录</h4>
+				<div class="form-group">
+					<label class="form-label" for="login-username">用户名</label>
+					<input type="text" id="login-username" class="form-input" required style="width: 80%;">
+				</div>
+				<div class="form-group">
+					<label class="form-label" for="login-password">密码</label>
+					<input type="password" id="login-password" class="form-input" required style="width: 80%;">
+				</div>
+				<div id="login-error" class="error-message">
+					用户名或密码错误
+				</div>
+				<button id="login-btn" class="btn-primary w-full mt-4" style="cursor: pointer;">登录</button>
+			</div>
+		</div>
+
+		<div class="modal-content" style="min-height: 500px;">
+			<!-- 顶部标题栏 -->
+			<div class="record-header">
+				<h4>筛选记录</h4>
+				<button id="refresh-btn" class="btn-default btn-sm">刷新</button>
+			</div>
+
+			<!-- 筛选记录表格 -->
+			<div class="table-container">
+				<table id="filterRecordTable" class="filter-table">
+					<thead>
+						<tr>
+							<th>执行时间</th>
+							<th>执行批次</th>
+							<th>商品数量</th>
+							<th class="action-column">操作</th>
+						</tr>
+					</thead>
+					<tbody></tbody>
+				</table>
+			</div>
+		</div>
+
+		<script src="versionChecker.js"></script>
+		<!-- 引入JavaScript -->
+		<script src="popup.js"></script>
+
+	</body>
+</html>

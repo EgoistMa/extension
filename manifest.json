@@ -1,0 +1,58 @@
+{
+	"manifest_version": 3,
+	"name": "抖星选品",
+	"version": "1.0",
+	"action": {
+		"default_popup": "popup.html",
+		"default_title": "抖星选品"
+	},
+	"permissions": [
+		"activeTab",
+		"tabs",
+		"scripting",
+		"downloads",
+		"storage",
+		"webNavigation",
+		"clipboardRead",
+		"webRequest",
+		"webRequestBlocking",
+		"https://buyin.jinritemai.com/*",
+		"https://www.douyin.com/*",
+		"https://zmapi.umyw.cn/*",
+		"https://api.douyin.com/*",
+		"https://aweme.snssdk.com/*"
+	],
+	"host_permissions": [
+		"https://www.douyin.com/*"
+	],
+	"background": {
+		"service_worker": "background.js",
+		"type": "module"
+	},
+	"content_scripts": [{
+			"matches": ["https://buyin.jinritemai.com/dashboard/merch-picking-library/merch-promoting*"],
+			"js": ["versionChecker.js", "baiying.js"],
+			"css": ["baiying-styles.css"],
+			"run_at": "document_start"
+
+		},
+		{
+			"matches": ["https://www.douyin.com/search/*"],
+			"js": ["versionChecker.js", "douyin.js"],
+			"run_at": "document_start"
+		},
+		{
+			"matches": ["https://www.douyin.com/video/*"],
+			"js": ["versionChecker.js", "douyin.js"]
+		}
+	],
+	"web_accessible_resources": [{
+			"resources": ["assets/main-insert.js", "assets/insert.js"],
+			"matches": ["https://buyin.jinritemai.com/*"]
+		},
+		{
+			"resources": ["assets/douyin-insert.js"],
+			"matches": ["https://www.douyin.com/*"]
+		}
+	]
+}

@@ -1,0 +1,67 @@
+/* 消息提示样式 */
+#message {
+	margin-top: 15px;
+	color: red;
+	text-align: center;
+}
+
+.param-style {
+	color: #1966ff;
+	margin-left: 10px;
+	font-size: 18px;
+	cursor: pointer;
+}
+
+.index_module__PromotionContent____3c42 .index_module__mainContent____3c42 .index_module__contentArea____3c42 .index_module__cardContainer____3c42 .index_module__cardWrapper____3c42 {
+	height: 318px !important;
+
+}
+
+.index_module__contentCard____1821 {
+	height: 318px !important;
+}
+
+.index_module__expand____1821 {
+	height: 421px !important;
+}
+.copy-error-alert{
+	position: fixed;
+	top: 20px;
+	right: 20px;
+	background-color: #ff3b0a;
+	color: white;
+	padding: 10px 20px;
+	border-radius: 5px;
+	box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+	z-index: 9999;
+}
+
+.copy-success-alert {
+	position: fixed;
+	top: 20px;
+	right: 20px;
+	background-color: #4CAF50;
+	color: white;
+	padding: 10px 20px;
+	border-radius: 5px;
+	box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+	z-index: 9999;
+}
+
+.param-container {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 10px 0;
+}
+
+.select-button-style {
+	cursor: pointer;
+	color: green;
+}
+
+.delete-button-style {
+	cursor: pointer;
+	color: red;
+	margin-left: 16px;
+}
