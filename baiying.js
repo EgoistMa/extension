@@ -57,10 +57,15 @@ function loadUser(callback) {
   user = null;
   chrome.storage.local.get('xuanpin_user', function (result) {
     if (result.xuanpin_user) {
-      user = JSON.parse(result.xuanpin_user);
-      console.log("xuanpin_user======>", user);
-      callback();
+      try {
+        user = JSON.parse(result.xuanpin_user);
+        console.log("xuanpin_user======>", user);
+      } catch (error) {
+        console.warn("xuanpin_user 解析失败:", error);
+        user = null;
+      }
     }
+    callback();
   });
 }
 function loadSharedData() {
@@ -127,11 +132,9 @@ function getProductName() {
 }
 function getProductInfo() {
   productInfo = {};
-  if (!user || !user.id) {
-    return void alert("没有登录");
-  }
+  const effectiveUserId = user?.id || "anonymous";
   const promotionId = getUrlParam('id');
-  productInfo.userId = user.id;
+  productInfo.userId = effectiveUserId;
   productInfo.excuteTime = getMidnightTimestamp();
   productInfo.noSelectSevenDay = false;
   productInfo.deleted = 0x0;
@@ -479,9 +482,7 @@ async function insertDownBtns() {
         }
       });
       actionButtonsContainer.insertBefore(goToDouyinBtn, actionButtonsContainer.firstChild);
-      if (user && 0x1 == user.show_daren_listen) {
-        actionButtonsContainer.insertBefore(goToKaogujiaBtn, actionButtonsContainer.firstChild);
-      }
+      actionButtonsContainer.insertBefore(goToKaogujiaBtn, actionButtonsContainer.firstChild);
       actionButtonsContainer.insertBefore(downloadImageBtn, actionButtonsContainer.firstChild);
       actionButtonsContainer.insertBefore(downloadImageWithCartBtn, actionButtonsContainer.firstChild);
       actionButtonsContainer.insertBefore(downloadVideoBtn, actionButtonsContainer.firstChild);
@@ -635,46 +636,16 @@ async function callDoubaoAPI(referenceText) {
 async function callTtsApi(text) {
   try {
     if (!productInfo.userId) {
-      return void alert("未登录，请重新登录");
+      productInfo.userId = "anonymous";
     }
     if (!productInfo.excuteTime) {
       return void alert("执行批次不正确，请检查");
     }
-    const response = await fetch('https://zmapi.umyw.cn/tts_proxy.php', {
-      'method': "POST",
-      'headers': {
-        'Content-Type': "application/json"
-      },
-      'body': JSON.stringify({
-        'text': text || "字节跳动语音合成"
-      })
-    });
-    if (!response.ok) {
-      throw new Error("HTTP错误! 状态码: " + response.status);
-    }
-    const result = await response.json();
-    console.log("API响应:", result);
-    if (result && result.data) {
-      const binaryString = atob(result.data);
-      const arrayBuffer = new ArrayBuffer(binaryString.length);
-      const uint8Array = new Uint8Array(arrayBuffer);
-      for (let i = 0x0; i < binaryString.length; i++) {
-        uint8Array[i] = binaryString.charCodeAt(i);
-      }
-      const blob = new Blob([arrayBuffer], {
-        'type': "audio/mp3"
-      });
-      const blobUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = productInfo.userId + '_' + productInfo.excuteTime + '_' + product_id + '_audio_1.mp3';
-      document.body.appendChild(link);
-      link.click();
-      setTimeout(() => {
-        document.body.removeChild(link);
-        URL.revokeObjectURL(blobUrl);
-      }, 0x64);
-    }
+    alert("语音合成功能已禁用：后续可接入自建 TTS 服务");
+    return {
+      'success': false,
+      'error': "TTS_DISABLED"
+    };
   } catch (error) {
     console.error("调用API时出错:", error);
     throw error;
@@ -806,16 +777,8 @@ function insertParamsToNode() {
     deleteBtn.addEventListener("click", async () => {
       console.log("开始删除");
       try {
-        if (!user || !user.id) {
-          return void alert("没有登录");
-        }
-        const response = await fetch("https://zmapi.umyw.cn/delete_data.php?userId=" + user.id + "&product_id=" + product_id);
-        if (!response.ok) {
-          throw new Error("请求失败");
-        }
-        if ("success" === (await response.json()).status) {
-          showCopySuccessAlert(product_id + "删除成功");
-        }
+        alert("已移除服务器同步删除功能（后续可接入自建后端）");
+        return;
       } catch (error) {
         console.error("查询失败: " + error.message);
       }
@@ -994,12 +957,12 @@ async function downImage() {
       alert('执行批次不正确，请检查');
     }
   } else {
-    alert("未登录，请重新登录");
+    alert("用户标识缺失，请刷新后重试");
   }
 }
 async function downMainVideo() {
   if (!productInfo.userId) {
-    return void alert("未登录，请重新登录");
+    productInfo.userId = "anonymous";
   }
   if (!productInfo.excuteTime) {
     return void alert("执行批次不正确，请检查");
@@ -1011,7 +974,7 @@ async function downMainVideo() {
 }
 async function extractPageResources(event, videoNumber) {
   if (!productInfo.userId) {
-    return void alert("未登录，请重新登录");
+    productInfo.userId = "anonymous";
   }
   if (!productInfo.excuteTime) {
     return void alert('执行批次不正确，请检查');
@@ -1048,87 +1011,14 @@ async function checkTitleText(callback) {
   if (!titleElement.textContent.trim()) {
     return void alert("没有产品名称");
   }
-  const detector = new DouyinWordDetector("http://zmapi.umyw.cn/word_filter_api.php");
-  console.log('产品名:', titleElement.textContent.trim());
-  const checkResult = await detector.checkText(titleElement.textContent.trim(), product_id);
-  console.log("检测结果:", checkResult);
-  let warningMessage = '';
-  if (checkResult.hasWordViolation) {
-    warningMessage += "检测到违规词[" + checkResult.matchedWord + "]，是否继续执行？";
-  }
-  if (checkResult.hasProductViolation) {
-    warningMessage += "检测到违规产品[" + checkResult.matchedProductId + "]，是否继续执行？";
-  }
-  if (warningMessage) {
-    const modalDialog = document.createElement('div');
-    modalDialog.style.cssText = "\n\t\t    position: fixed;\n\t\t    top: 50%;\n\t\t    left: 50%;\n\t\t    transform: translate(-50%, -50%);\n\t\t    background: white;\n\t\t    padding: 20px;\n\t\t    border-radius: 8px;\n\t\t    box-shadow: 0 4px 16px rgba(0,0,0,0.2);\n\t\t    z-index: 9999;\n\t\t    min-width: 300px;\n\t\t    font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif;\n\t\t  ";
-    const messagePara = document.createElement('p');
-    messagePara.textContent = warningMessage;
-    messagePara.style.cssText = "margin: 0 0 15px; font-size: 15px;";
-    const buttonContainer = document.createElement('div');
-    buttonContainer.style.cssText = "display: flex; justify-content: flex-end; gap: 10px;";
-    const continueBtn = document.createElement("button");
-    continueBtn.textContent = '继续';
-    continueBtn.style.cssText = "\n\t\t    background: #4CAF50;\n\t\t    color: white;\n\t\t    border: none;\n\t\t    padding: 8px 16px;\n\t\t    border-radius: 4px;\n\t\t    cursor: pointer;\n\t\t    font-size: 14px;\n\t\t  ";
-    const cancelBtn = document.createElement("button");
-    cancelBtn.textContent = '取消';
-    cancelBtn.style.cssText = "\n\t\t    background: #f44336;\n\t\t    color: white;\n\t\t    border: none;\n\t\t    padding: 8px 16px;\n\t\t    border-radius: 4px;\n\t\t    cursor: pointer;\n\t\t    font-size: 14px;\n\t\t  ";
-    buttonContainer.appendChild(cancelBtn);
-    buttonContainer.appendChild(continueBtn);
-    modalDialog.appendChild(messagePara);
-    modalDialog.appendChild(buttonContainer);
-    const overlay = document.createElement('div');
-    overlay.style.cssText = "\n\t\t    position: fixed;\n\t\t    top: 0;\n\t\t    left: 0;\n\t\t    width: 100%;\n\t\t    height: 100%;\n\t\t    background: rgba(0,0,0,0.5);\n\t\t    z-index: 9998;\n\t\t  ";
-    document.body.appendChild(overlay);
-    document.body.appendChild(modalDialog);
-    cancelBtn.addEventListener('click', () => {
-      document.body.removeChild(overlay);
-      document.body.removeChild(modalDialog);
-      throw new Error("用户取消操作");
-    });
-    continueBtn.addEventListener("click", () => {
-      document.body.removeChild(overlay);
-      document.body.removeChild(modalDialog);
-      callback();
-    });
-  } else {
-    await callback();
-  }
+  // NOTE: 原实现会在此处调用远端服务做“违规词/违规商品”检测。
+  // 当前版本移除了对外部服务（zmapi.umyw.cn）的依赖；后续可在此处接入自建检测服务。
+  await callback();
 }
 async function saveProject() {
-  if (!user || !user.id) {
-    alert("没有登录");
-    throw Error("没有登录");
-  }
-  productInfo.by30 = JSON.stringify(productInfo.by30);
-  try {
-    const response = await fetch("https://zmapi.umyw.cn/save_data.php", {
-      'method': "POST",
-      'headers': {
-        'Authorization': "Bearer " + user.token,
-        'Content-Type': "application/json"
-      },
-      'body': JSON.stringify(productInfo)
-    });
-    const result = await response.json();
-    if ("success" === result.status) {
-      console.log("【智能选品】数据保存成功！ID：" + result.data.id);
-      showCopySuccessAlert('成功');
-    } else {
-      console.error("【智能选品】保存错误：", result.message);
-      showCopyErrorAlert(result.message);
-      if (result.code && 0x191 == result.code) {
-        chrome.storage.local.remove('xuanpin_user', function () {
-          console.log("已删除 xuanpin_user");
-          user = null;
-          getProductInfo();
-        });
-      }
-    }
-  } catch (error) {
-    console.error('【智能选品】捕获到异常：', error.message);
-    showCopyErrorAlert(error.message);
-  }
+  // NOTE: 原实现会把选品数据保存到远端服务（zmapi.umyw.cn）。
+  // 当前版本仅保留本地下载能力；后续可在此处接入自建后端。
+  return;
 }
 async function downRes(event, videoNumber) {
   await checkTitleText(async () => {
@@ -1211,8 +1101,7 @@ async function insertStringToCardWrappers() {
   const downloadCurrentPageBtn = document.createElement("button");
   async function downloadSingleVideo(cardElement, videoIndex) {
     if (!productInfo.userId) {
-      alert('未登录，请重新登录');
-      return false;
+      productInfo.userId = "anonymous";
     }
     if (!productInfo.excuteTime) {
       alert("执行批次不正确，请检查");

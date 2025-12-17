@@ -18,7 +18,6 @@
 		"webRequestBlocking",
 		"https://buyin.jinritemai.com/*",
 		"https://www.douyin.com/*",
-		"https://zmapi.umyw.cn/*",
 		"https://api.douyin.com/*",
 		"https://aweme.snssdk.com/*"
 	],

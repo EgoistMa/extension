@@ -1,5 +1,7 @@
 let video_url = '';
-let user = null;
+let user = {
+  'id': "anonymous"
+};
 let excuteTime = null;
 function getMidnightTimestamp() {
   const now = new Date();
@@ -8,8 +10,15 @@ function getMidnightTimestamp() {
 function loadUserData() {
   chrome.storage.local.get("xuanpin_user", function (result) {
     if (result.xuanpin_user) {
-      user = JSON.parse(result.xuanpin_user);
-      console.log("xuanpin_user======>", user);
+      try {
+        user = JSON.parse(result.xuanpin_user);
+        console.log("xuanpin_user======>", user);
+      } catch (error) {
+        console.warn("xuanpin_user 解析失败:", error);
+        user = {
+          'id': "anonymous"
+        };
+      }
     }
   });
   excuteTime = getMidnightTimestamp();
@@ -266,9 +275,7 @@ function addDownloadButtonsToCards() {
             if (old_product_id != productId) {
               return void alert("商品id已经发生变化，请重新进入页面再下载！");
             }
-            if (!user || !user.id) {
-              return void alert("未登录，请重新登录");
-            }
+            const effectiveUserId = user?.id || "anonymous";
             if (!excuteTime) {
               return void alert('执行批次不正确，请检查');
             }
@@ -278,7 +285,7 @@ function addDownloadButtonsToCards() {
             const itemVideoId = idParts[idParts.length - 0x1];
             const videoUrl = video_map[itemVideoId];
             if (videoUrl) {
-              await downloadResource(videoUrl, user.id + '_' + excuteTime + '_' + productId + '_video_1.mp4');
+              await downloadResource(videoUrl, effectiveUserId + '_' + excuteTime + '_' + productId + '_video_1.mp4');
             } else {
               console.log("使用handleDownloadButtonClick下载");
               await handleDownloadButtonClick(0x1, videoId);
@@ -306,9 +313,7 @@ function addDownloadButtonsToCards() {
             if (old_product_id != productId) {
               return void alert("商品id已经发生变化，请重新进入页面再下载！");
             }
-            if (!user || !user.id) {
-              return void alert("未登录，请重新登录");
-            }
+            const effectiveUserId = user?.id || "anonymous";
             if (!excuteTime) {
               return void alert('执行批次不正确，请检查');
             }
@@ -318,7 +323,7 @@ function addDownloadButtonsToCards() {
             const itemVideoId = idParts[idParts.length - 0x1];
             const videoUrl = video_map[itemVideoId];
             if (videoUrl) {
-              await downloadResource(videoUrl, user.id + '_' + excuteTime + '_' + productId + "_video_2.mp4");
+              await downloadResource(videoUrl, effectiveUserId + '_' + excuteTime + '_' + productId + "_video_2.mp4");
             } else {
               console.log('使用handleDownloadButtonClick下载');
               await handleDownloadButtonClick(0x2, videoId);
@@ -346,9 +351,7 @@ function addDownloadButtonsToCards() {
             if (old_product_id != productId) {
               return void alert("商品id已经发生变化，请重新进入页面再下载！");
             }
-            if (!user || !user.id) {
-              return void alert('未登录，请重新登录');
-            }
+            const effectiveUserId = user?.id || "anonymous";
             if (!excuteTime) {
               return void alert('执行批次不正确，请检查');
             }
@@ -358,7 +361,7 @@ function addDownloadButtonsToCards() {
             const itemVideoId = idParts[idParts.length - 0x1];
             const videoUrl = video_map[itemVideoId];
             if (videoUrl) {
-              await downloadResource(videoUrl, user.id + '_' + excuteTime + '_' + productId + "_video_3.mp4");
+              await downloadResource(videoUrl, effectiveUserId + '_' + excuteTime + '_' + productId + "_video_3.mp4");
             } else {
               console.log("使用handleDownloadButtonClick下载");
               await handleDownloadButtonClick(0x3, videoId);
@@ -621,26 +624,23 @@ window.addEventListener('load', async () => {
         }
         let productId = result.baiying_project_info.product_id;
         if (old_product_id == productId) {
-          if (user && user.id) {
-            if (excuteTime) {
-              videoDownloadButton1.disabled = true;
-              videoDownloadButton1.innerHTML = '<span>下载中...</span>';
-              if (video_url) {
-                await downloadResource(video_url, user.id + '_' + excuteTime + '_' + productId + "_video_1.mp4");
-              } else {
-                console.log("使用handleDownloadButtonClick下载");
-                const currentVideoId = window.location.href.split('/').pop();
-                await handleDownloadButtonClick(0x1, currentVideoId);
-              }
-              setTimeout(() => {
-                videoDownloadButton1.disabled = false;
-                videoDownloadButton1.innerHTML = "<span>下载1</span>";
-              }, 0x3e8);
+          const effectiveUserId = user?.id || "anonymous";
+          if (excuteTime) {
+            videoDownloadButton1.disabled = true;
+            videoDownloadButton1.innerHTML = '<span>下载中...</span>';
+            if (video_url) {
+              await downloadResource(video_url, effectiveUserId + '_' + excuteTime + '_' + productId + "_video_1.mp4");
             } else {
-              alert("执行批次不正确，请检查");
+              console.log("使用handleDownloadButtonClick下载");
+              const currentVideoId = window.location.href.split('/').pop();
+              await handleDownloadButtonClick(0x1, currentVideoId);
             }
+            setTimeout(() => {
+              videoDownloadButton1.disabled = false;
+              videoDownloadButton1.innerHTML = "<span>下载1</span>";
+            }, 0x3e8);
           } else {
-            alert("未登录，请重新登录");
+            alert("执行批次不正确，请检查");
           }
         } else {
           alert("商品id已经发生变化，请重新进入页面再下载！");
@@ -655,26 +655,23 @@ window.addEventListener('load', async () => {
         }
         let productId = result.baiying_project_info.product_id;
         if (old_product_id == productId) {
-          if (user && user.id) {
-            if (excuteTime) {
-              videoDownloadButton2.disabled = true;
-              videoDownloadButton2.innerHTML = '<span>下载中...</span>';
-              if (video_url) {
-                await downloadResource(video_url, user.id + '_' + excuteTime + '_' + productId + "_video_2.mp4");
-              } else {
-                console.log("使用handleDownloadButtonClick下载");
-                const currentVideoId = window.location.href.split('/').pop();
-                await handleDownloadButtonClick(0x2, currentVideoId);
-              }
-              setTimeout(() => {
-                videoDownloadButton2.disabled = false;
-                videoDownloadButton2.innerHTML = "<span>下载2</span>";
-              }, 0x3e8);
+          const effectiveUserId = user?.id || "anonymous";
+          if (excuteTime) {
+            videoDownloadButton2.disabled = true;
+            videoDownloadButton2.innerHTML = '<span>下载中...</span>';
+            if (video_url) {
+              await downloadResource(video_url, effectiveUserId + '_' + excuteTime + '_' + productId + "_video_2.mp4");
             } else {
-              alert("执行批次不正确，请检查");
+              console.log("使用handleDownloadButtonClick下载");
+              const currentVideoId = window.location.href.split('/').pop();
+              await handleDownloadButtonClick(0x2, currentVideoId);
             }
+            setTimeout(() => {
+              videoDownloadButton2.disabled = false;
+              videoDownloadButton2.innerHTML = "<span>下载2</span>";
+            }, 0x3e8);
           } else {
-            alert("未登录，请重新登录");
+            alert("执行批次不正确，请检查");
           }
         } else {
           alert('商品id已经发生变化，请重新进入页面再下载！');
@@ -689,26 +686,23 @@ window.addEventListener('load', async () => {
         }
         let productId = result.baiying_project_info.product_id;
         if (old_product_id == productId) {
-          if (user && user.id) {
-            if (excuteTime) {
-              videoDownloadButton3.disabled = true;
-              videoDownloadButton3.innerHTML = "<span>下载中...</span>";
-              if (video_url) {
-                await downloadResource(video_url, user.id + '_' + excuteTime + '_' + productId + '_video_3.mp4');
-              } else {
-                console.log("使用handleDownloadButtonClick下载");
-                const currentVideoId = window.location.href.split('/').pop();
-                await handleDownloadButtonClick(0x3, currentVideoId);
-              }
-              setTimeout(() => {
-                videoDownloadButton3.disabled = false;
-                videoDownloadButton3.innerHTML = "<span>下载3</span>";
-              }, 0x3e8);
+          const effectiveUserId = user?.id || "anonymous";
+          if (excuteTime) {
+            videoDownloadButton3.disabled = true;
+            videoDownloadButton3.innerHTML = "<span>下载中...</span>";
+            if (video_url) {
+              await downloadResource(video_url, effectiveUserId + '_' + excuteTime + '_' + productId + '_video_3.mp4');
             } else {
-              alert("执行批次不正确，请检查");
+              console.log("使用handleDownloadButtonClick下载");
+              const currentVideoId = window.location.href.split('/').pop();
+              await handleDownloadButtonClick(0x3, currentVideoId);
             }
+            setTimeout(() => {
+              videoDownloadButton3.disabled = false;
+              videoDownloadButton3.innerHTML = "<span>下载3</span>";
+            }, 0x3e8);
           } else {
-            alert("未登录，请重新登录");
+            alert("执行批次不正确，请检查");
           }
         } else {
           alert('商品id已经发生变化，请重新进入页面再下载！');
