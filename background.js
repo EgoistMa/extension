@@ -1,3 +1,33 @@
+const pendingDownloadTasks = new Map();
+
+chrome.downloads.onChanged.addListener(delta => {
+  if (!pendingDownloadTasks.has(delta.id)) {
+    return;
+  }
+  const task = pendingDownloadTasks.get(delta.id);
+  if (delta.state && 'complete' === delta.state.current) {
+    chrome.downloads.search({
+      'id': delta.id
+    }, results => {
+      const filePath = results && results[0x0] ? results[0x0].filename : '';
+      task.sendResponse({
+        'success': true,
+        'filePath': filePath,
+        'id': delta.id
+      });
+      pendingDownloadTasks.delete(delta.id);
+    });
+  } else {
+    if (delta.state && 'interrupted' === delta.state.current) {
+      task.sendResponse({
+        'success': false,
+        'error': '下载被中断'
+      });
+      pendingDownloadTasks.delete(delta.id);
+    }
+  }
+});
+
 function checkDirectory() {
   return new Promise(resolve => {
     chrome.storage.sync.get("downloadDirectory", result => {
@@ -105,6 +135,103 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
           'error': error.message
         });
       });
+      return true;
+    case "downloadVideoFile":
+      if (!message.url || !message.filename) {
+        sendResponse({
+          'success': false,
+          'error': "参数不完整"
+        });
+        return true;
+      }
+      chrome.downloads.download({
+        'url': message.url,
+        'filename': message.filename.replace(/^\/+/, ''),
+        'saveAs': false,
+        'conflictAction': "overwrite"
+      }, downloadId => {
+        if (chrome.runtime.lastError || !downloadId) {
+          sendResponse({
+            'success': false,
+            'error': chrome.runtime.lastError?.message || "下载启动失败"
+          });
+        } else {
+          pendingDownloadTasks.set(downloadId, {
+            'sendResponse': sendResponse
+          });
+        }
+      });
+      return true;
+    case "openDouyinSearch":
+      if (!message.keyword || !message.keyword.trim()) {
+        sendResponse({
+          'success': false,
+          'error': "缺少关键词"
+        });
+        return true;
+      }
+      chrome.tabs.create({
+        'url': "https://www.douyin.com/search/" + encodeURIComponent(message.keyword.trim())
+      }, tab => {
+        if (chrome.runtime.lastError || !tab) {
+          sendResponse({
+            'success': false,
+            'error': chrome.runtime.lastError?.message || "打开抖音失败"
+          });
+        } else {
+          sendResponse({
+            'success': true,
+            'tabId': tab.id || null
+          });
+        }
+      });
+      return true;
+    case "testConcatHealth":
+      (async () => {
+        try {
+          const res = await fetch("http://127.0.0.1:8787/health");
+          const data = await res.json();
+          sendResponse({
+            'success': true,
+            'data': data
+          });
+        } catch (error) {
+          sendResponse({
+            'success': false,
+            'error': error.message
+          });
+        }
+      })();
+      return true;
+    case "concatVideos":
+      if (!message.payload) {
+        sendResponse({
+          'success': false,
+          'error': "缺少任务数据"
+        });
+        return true;
+      }
+      (async () => {
+        try {
+          const res = await fetch("http://127.0.0.1:8787/concat", {
+            'method': "POST",
+            'headers': {
+              'Content-Type': 'application/json'
+            },
+            'body': JSON.stringify(message.payload)
+          });
+          const data = await res.json();
+          sendResponse({
+            'success': true,
+            'data': data
+          });
+        } catch (error) {
+          sendResponse({
+            'success': false,
+            'error': error.message
+          });
+        }
+      })();
       return true;
     case "openAndScrape":
       console.log('openAndScrape', message.action);

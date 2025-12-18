@@ -20,11 +20,67 @@
 			</div>
 
 			<div style="padding: 12px; line-height: 1.6; color: #111827;">
+				<!-- 原百应流程说明：当前 PROTOTYPE 不需要百应侧写入，暂时注释保留
 				<div>1) 在百应商品页点击：<b>下载图片</b>（用于写入商品信息并下载图片素材）</div>
-				<div>2) 在抖音搜索页/视频详情页点击：<b>下载1/下载2/下载3</b>（下载视频素材）</div>
+				-->
+				<div>1) 在下方直接输入需要搜索的素材名称，点击<b>创建上下文</b></div>
+				<div>2) 在抖音搜索页/视频详情页点击：<b>下载1/下载2/下载3</b>（下载无水印视频）</div>
 				<div style="margin-top: 8px; color: #6B7280; font-size: 12px;">
 					说明：当前版本仅保留本地下载能力，已移除对外部业务服务器的依赖。
 				</div>
+			</div>
+
+			<div class="record-header" style="margin-top: 8px;">
+				<h4>手动创建素材上下文</h4>
+			</div>
+			<div style="padding: 12px;">
+				<label for="manual-project-name" style="display:block; font-size: 13px; color:#374151; margin-bottom:4px;">视频/商品关键词</label>
+				<input id="manual-project-name" type="text" placeholder="例如：夏季连衣裙" style="width: 100%; padding: 6px 8px; border: 1px solid #D1D5DB; border-radius: 4px; font-size: 14px;">
+				<button id="save-project-btn" class="btn-default btn-sm" style="margin-top: 8px;">创建上下文</button>
+				<div id="manual-project-status" style="margin-top: 6px; color: #6B7280; font-size: 12px;">输入任意关键词，后续下载文件将自动使用该信息命名。</div>
+			</div>
+
+			<div class="record-header" style="margin-top: 8px;">
+				<h4>自动剪辑设置</h4>
+			</div>
+			<div style="padding: 12px; display: flex; flex-direction: column; gap: 8px;">
+				<label style="font-size: 13px; color:#374151;">剪映草稿根目录</label>
+				<input id="concat-drafts-root" type="text" placeholder="例如：C:\Users\你\Documents\JianyingPro\Projects" style="width: 100%; padding: 6px 8px; border: 1px solid #D1D5DB; border-radius: 4px; font-size: 14px;">
+
+				<label style="font-size: 13px; color:#374151;">导出视频所在目录</label>
+				<input id="concat-output-dir" type="text" placeholder="例如：C:\Users\你\Videos\Auto" style="width: 100%; padding: 6px 8px; border: 1px solid #D1D5DB; border-radius: 4px; font-size: 14px;">
+
+				<label style="font-size: 13px; color:#374151;">任务 / Job ID</label>
+				<input id="concat-job-id" type="text" placeholder="留空则自动生成" style="width: 100%; padding: 6px 8px; border: 1px solid #D1D5DB; border-radius: 4px; font-size: 14px;">
+
+				<div style="display: flex; gap: 8px;">
+					<div style="flex: 1;">
+						<label style="font-size: 13px; color:#374151;">画布宽(px)</label>
+						<input id="concat-canvas-width" type="number" min="100" value="1080" style="width: 100%; padding: 6px 8px; border: 1px solid #D1D5DB; border-radius: 4px; font-size: 14px;">
+					</div>
+					<div style="flex: 1;">
+						<label style="font-size: 13px; color:#374151;">画布高(px)</label>
+						<input id="concat-canvas-height" type="number" min="100" value="1920" style="width: 100%; padding: 6px 8px; border: 1px solid #D1D5DB; border-radius: 4px; font-size: 14px;">
+					</div>
+				</div>
+
+				<label style="font-size: 13px; color:#374151;">帧率</label>
+				<select id="concat-fps" style="width: 100%; padding: 6px 8px; border: 1px solid #D1D5DB; border-radius: 4px; font-size: 14px;">
+					<option value="24">24</option>
+					<option value="25">25</option>
+					<option value="30" selected>30</option>
+					<option value="50">50</option>
+					<option value="60">60</option>
+				</select>
+
+				<label style="font-size: 13px; color:#374151;">每段素材时长上限(秒，选填)</label>
+				<input id="concat-max-seconds" type="number" min="1" placeholder="可留空" style="width: 100%; padding: 6px 8px; border: 1px solid #D1D5DB; border-radius: 4px; font-size: 14px;">
+
+				<div style="display:flex; gap: 8px; flex-wrap: wrap;">
+					<button id="concat-save-btn" class="btn-default btn-sm" style="flex:1;">保存设置</button>
+					<button id="concat-health-btn" class="btn-default btn-sm" style="flex:1;">测试服务连接</button>
+				</div>
+				<div id="concat-status" style="margin-top: 4px; color: #6B7280; font-size: 12px;">请先安装并运行本地剪辑服务（python server.py），再保存设置。</div>
 			</div>
 
 			<div class="record-header" style="margin-top: 8px;">

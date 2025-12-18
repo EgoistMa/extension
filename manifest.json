@@ -22,7 +22,9 @@
 		"https://aweme.snssdk.com/*"
 	],
 	"host_permissions": [
-		"https://www.douyin.com/*"
+		"https://www.douyin.com/*",
+		"http://127.0.0.1/*",
+		"http://localhost/*"
 	],
 	"background": {
 		"service_worker": "background.js",
@@ -36,13 +38,9 @@
 
 		},
 		{
-			"matches": ["https://www.douyin.com/search/*"],
+			"matches": ["https://www.douyin.com/*"],
 			"js": ["versionChecker.js", "douyin.js"],
 			"run_at": "document_start"
-		},
-		{
-			"matches": ["https://www.douyin.com/video/*"],
-			"js": ["versionChecker.js", "douyin.js"]
 		}
 	],
 	"web_accessible_resources": [{

@@ -1,3 +1,4 @@
+/* PROTOTYPE TEMPORARILY DISABLED: 当前原型阶段跳过百应图片流程，暂时整体注释以便后续恢复
 let aalock = false;
 let product_id = null;
 function earlyInjectScript() {
@@ -12,6 +13,7 @@ function earlyInjectScript() {
     setTimeout(earlyInjectScript, 0x64);
   }
 }
+
 function injectScriptToPage() {
   try {
     if (!document.head && !document.documentElement) {
@@ -1245,3 +1247,5 @@ async function insertStringToCardWrappers() {
     }
   });
 }
+
+*/

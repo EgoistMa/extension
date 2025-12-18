@@ -148,6 +148,20 @@ async function getRequestParams(paramType) {
   } : null;
 }
 let fileNumber = 0x1;
+const AUTO_DOWNLOAD_CONFIG = {
+  'minDuration': 0x0,
+  'maxDuration': 0x3c,
+  'limit': 0x3
+};
+let autoDownloadQueue = [];
+let autoDownloading = false;
+let currentAutoDownload = null;
+const autoDownloadedSet = new Set();
+let autoDownloadInitialized = false;
+let autoDownloadFileIndex = 1;
+let autoDownloadResults = [];
+let concatInProgress = false;
+let lastSearchKeyword = null;
 function waitForElement(selector, callback) {
   const checkElement = () => {
     const element = document.querySelector(selector);
@@ -454,7 +468,9 @@ function normalizeVideoData(awemeDetail) {
     'cover': awemeDetail.video?.["origin_cover"]?.["url_list"][0x0],
     'url': getHighestQualityVideoUrl(awemeDetail) || videoUrl,
     'authorName': awemeDetail.author?.['nickname'],
-    'title': awemeDetail.desc
+    'title': awemeDetail.desc,
+    'duration': ((awemeDetail.duration || awemeDetail.video?.duration || 0x0) / 0x3e8) || 0x0,
+    'digg': awemeDetail.statistics?.digg_count || 0x0
   };
 }
 window.addEventListener('load', async () => {
@@ -1126,49 +1142,49 @@ const FileHandler = {
   }
 };
 async function downloadVideo(videoData, progressCallback, completeCallback) {
-  chrome.storage.local.get("baiying_project_info", async result => {
-    console.log("获取的数据:", result);
-    if (!result || !result.baiying_project_info || !result.baiying_project_info.product_id) {
-      return void alert("请先下载图片！");
+  ensureAutoProjectContext(async projectInfo => {
+    const productId = projectInfo.product_id;
+    if (!productId) {
+      if (completeCallback) {
+        completeCallback(new Error("缺少商品ID"));
+      }
+      return;
     }
-    const productId = result.baiying_project_info.product_id;
-    if (old_product_id != productId) {
-      return void alert("商品id已经发生变化，请重新进入页面再下载！");
+    old_product_id = productId;
+    if (!excuteTime) {
+      excuteTime = getMidnightTimestamp();
     }
     if (videoData.url?.["startsWith"]("http:")) {
       videoData.url = videoData.url.replaceAll("http:", "https:");
     }
-    let response = null;
-    try {
-      response = await fetch(videoData.url);
-      const contentLengthHeader = response.headers.get("content-length");
-      const totalSize = parseInt(contentLengthHeader, 0xa);
-      let loadedSize = 0x0;
-      const chunks = [];
-      const reader = response?.["body"]?.["getReader"]();
-      for (;;) {
-        const {
-          done: isDone,
-          value: chunk
-        } = await reader.read();
-        if (isDone) {
-          break;
+    const keywordForPath = sanitizeForPath(lastSearchKeyword || productId || "videos");
+    const relativePath = "auto_videos/" + keywordForPath + "/" + (user?.['id'] || 'anonymous') + '_' + (excuteTime || '') + '_' + productId + "_video_" + fileNumber + ".mp4";
+    chrome.runtime.sendMessage({
+      'action': 'downloadVideoFile',
+      'url': videoData.url,
+      'filename': relativePath
+    }, response => {
+      if (chrome.runtime.lastError) {
+        console.error("downloadVideoFile error:", chrome.runtime.lastError.message);
+        if (completeCallback) {
+          completeCallback(new Error(chrome.runtime.lastError.message));
         }
-        loadedSize += chunk.byteLength;
-        if (progressCallback) {
-          progressCallback(Math.round(0x64 * loadedSize / totalSize));
-        }
-        chunks.push(chunk);
+        return;
       }
-      const filename = (user?.['id'] || '') + '_' + (excuteTime || '') + '_' + productId + "_video_" + fileNumber + ".mp4";
-      FileHandler.downloadFile(new Blob(chunks), filename);
-      console.log("下载文件: " + filename);
+      if (!response || !response.success) {
+        console.error("下载失败:", response?.error);
+        if (completeCallback) {
+          completeCallback(new Error(response?.error || '下载失败'));
+        }
+        return;
+      }
       if (completeCallback) {
-        completeCallback();
+        completeCallback(null, {
+          'filePath': response.filePath,
+          'relativePath': relativePath
+        });
       }
-    } catch (error) {
-      console.error("fetch操作:", error);
-    }
+    });
   });
 }
 async function downloadResource(url, filename, subPath = '') {
@@ -1245,9 +1261,214 @@ async function downloadResource(url, filename, subPath = '') {
     };
   }
 }
+function getCurrentSearchKeyword() {
+  try {
+    const pathMatch = window.location.pathname.match(/\/search\/([^/?#]+)/);
+    if (pathMatch && pathMatch[0x1]) {
+      return decodeURIComponent(pathMatch[0x1]);
+    }
+    const params = new URLSearchParams(window.location.search);
+    return params.get('keyword') || params.get('search_key') || '';
+  } catch (error) {
+    console.warn("解析搜索关键词失败:", error);
+    return '';
+  }
+}
+function resetAutoDownloadState() {
+  autoDownloadQueue = [];
+  autoDownloading = false;
+  currentAutoDownload = null;
+  autoDownloadedSet.clear();
+  autoDownloadInitialized = false;
+  autoDownloadFileIndex = 1;
+  autoDownloadResults = [];
+  concatInProgress = false;
+}
+function prepareAutoDownloadForKeyword(keyword) {
+  const normalized = (keyword || '').trim();
+  if (lastSearchKeyword !== normalized) {
+    resetAutoDownloadState();
+    lastSearchKeyword = normalized;
+  }
+}
+function sanitizeForPath(text) {
+  return (text || '').toString().replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, '_').toLowerCase() || 'job';
+}
+function joinWindowsPath(base, name) {
+  if (!base) {
+    return name || '';
+  }
+  return base.replace(/[\\/]+$/, '') + '\\' + (name || '');
+}
+function ensureAutoProjectContext(callback) {
+  chrome.storage.local.get("baiying_project_info", result => {
+    if (result?.baiying_project_info?.product_id) {
+      old_product_id = result.baiying_project_info.product_id;
+      callback(result.baiying_project_info);
+      return;
+    }
+    const fallbackInfo = {
+      'product_id': 'auto_' + Date.now(),
+      'product_name': '自动下载',
+      'cover': ''
+    };
+    chrome.storage.local.set({
+      'baiying_project_info': fallbackInfo
+    }, () => {
+      old_product_id = fallbackInfo.product_id;
+      callback(fallbackInfo);
+    });
+  });
+}
+
+function selectAutoDownloadCandidates(awemeInfos) {
+  if (!Array.isArray(awemeInfos)) {
+    return [];
+  }
+  const candidates = awemeInfos.map(info => ({
+    'awemeId': info?.aweme_id,
+    'durationSec': (info?.video?.duration || 0x0) / 0x3e8,
+    'digg': info?.statistics?.digg_count || 0x0
+  })).filter(item => item.awemeId && item.durationSec >= AUTO_DOWNLOAD_CONFIG.minDuration && item.durationSec <= AUTO_DOWNLOAD_CONFIG.maxDuration);
+  candidates.sort((a, b) => b.digg - a.digg);
+  return candidates.slice(0x0, AUTO_DOWNLOAD_CONFIG.limit);
+}
+
+function enqueueAutoDownloads(awemeInfos) {
+  prepareAutoDownloadForKeyword(getCurrentSearchKeyword());
+  if (autoDownloadInitialized) {
+    return;
+  }
+  const selectedCandidates = selectAutoDownloadCandidates(awemeInfos);
+  if (0x0 === selectedCandidates.length) {
+    return;
+  }
+  ensureAutoProjectContext(() => {
+    let addedCount = 0x0;
+    selectedCandidates.forEach(candidate => {
+      const alreadyQueued = autoDownloadQueue.some(task => task.awemeId === candidate.awemeId);
+      if (autoDownloadedSet.has(candidate.awemeId) || alreadyQueued) {
+        return;
+      }
+      autoDownloadQueue.push({
+        'awemeId': candidate.awemeId,
+        'fileIndex': autoDownloadFileIndex++,
+        'durationSec': candidate.durationSec,
+        'digg': candidate.digg
+      });
+      addedCount++;
+    });
+    if (addedCount > 0x0) {
+      autoDownloadInitialized = true;
+      processAutoDownloadQueue();
+    }
+  });
+}
+
+function processAutoDownloadQueue() {
+  if (autoDownloading) {
+    return;
+  }
+  const nextTask = autoDownloadQueue.shift();
+  if (!nextTask) {
+    return;
+  }
+  autoDownloading = true;
+  currentAutoDownload = nextTask;
+  fileNumber = nextTask.fileIndex;
+  requestVideoDetail({
+    'vid': nextTask.awemeId,
+    'trigger': 'auto_download'
+  });
+}
+
+function finalizeAutoDownload() {
+  if (currentAutoDownload?.awemeId) {
+    autoDownloadedSet.add(currentAutoDownload.awemeId);
+  }
+  currentAutoDownload = null;
+  autoDownloading = false;
+  if (autoDownloadQueue.length > 0x0) {
+    processAutoDownloadQueue();
+  } else {
+    maybeTriggerConcatJob();
+  }
+}
+
 function initiateDownload(trigger, videoData) {
-  downloadVideo(videoData, progress => {}, () => {
-    console.log("下载完成");
+  downloadVideo(videoData, progress => {}, (error, fileInfo) => {
+    if (error) {
+      console.log("下载失败:", error);
+    } else {
+      console.log("下载完成");
+    }
+    if ('auto_download' === trigger) {
+      const autoMeta = currentAutoDownload;
+      if (!error && fileInfo?.filePath) {
+        autoDownloadResults.push({
+          'path': fileInfo.filePath,
+          'duration': autoMeta?.durationSec || videoData.duration || 0x0,
+          'digg': autoMeta?.digg || videoData.digg || 0x0
+        });
+      }
+      finalizeAutoDownload();
+    }
+  });
+}
+function maybeTriggerConcatJob() {
+  if (concatInProgress) {
+    return;
+  }
+  if (autoDownloadQueue.length > 0x0 || autoDownloading) {
+    return;
+  }
+  if (autoDownloadResults.length === 0x0) {
+    return;
+  }
+  concatInProgress = true;
+  chrome.storage.local.get('auto_concat_config', result => {
+    const config = result?.auto_concat_config || {};
+    if (!config.draftsRoot || !config.outputDir) {
+      concatInProgress = false;
+      alert('未配置剪辑服务参数，请在扩展弹窗中填写草稿根目录与输出目录。');
+      return;
+    }
+    const keywordBase = sanitizeForPath(lastSearchKeyword || currentAutoDownload?.awemeId || "job");
+    const jobId = (config.jobId && config.jobId.trim()) || (keywordBase + "_" + Date.now());
+    const payload = {
+      'job_id': jobId,
+      'drafts_root': config.draftsRoot,
+      'output_path': joinWindowsPath(config.outputDir, jobId + ".mp4"),
+      'canvas': {
+        'width': parseInt(config.canvasWidth, 10) || 1080,
+        'height': parseInt(config.canvasHeight, 10) || 1920
+      },
+      'fps': parseInt(config.fps, 10) || 30,
+      'videos': autoDownloadResults.map(item => item.path),
+      'options': {},
+      'keyword': lastSearchKeyword || ''
+    };
+    const maxEach = parseInt(config.maxEachSeconds, 10);
+    if (!Number.isNaN(maxEach) && maxEach > 0x0) {
+      payload.options.max_each_video_seconds = maxEach;
+    }
+    chrome.runtime.sendMessage({
+      'action': 'concatVideos',
+      'payload': payload
+    }, response => {
+      concatInProgress = false;
+      if (chrome.runtime.lastError) {
+        alert("调用剪辑服务失败：" + chrome.runtime.lastError.message);
+        return;
+      }
+      if (response?.success && response?.data?.ok) {
+        alert("素材已提交自动剪辑，Job ID: " + jobId);
+        autoDownloadResults = [];
+      } else {
+        alert("自动剪辑失败：" + (response?.data?.error || response?.error || '未知错误'));
+        autoDownloadResults = [];
+      }
+    });
   });
 }
 function extractAsMap(jsonString) {
@@ -1307,25 +1528,24 @@ window.addEventListener("message", async event => {
     if (trigger) {
       initiateDownload(trigger, normalizeVideoData(messageData.res.aweme_detail));
     }
-  } else {
-    if ('DBDY_SEARCH_ACCQURE_RES' === action) {
-      messageData.res.data.forEach(item => {
-        if (item.aweme_info && item.aweme_info.aweme_id) {
-          video_map[item.aweme_info.aweme_id] = item.aweme_info.video.play_addr.url_list[0x2];
-        } else {
-          console.log("item", item);
-        }
-      });
-      console.log("searchSingle res", video_map);
-    } else {
-      if ("DBDY_SEARCH_FIRST_ACCQURE_RES" === action) {
-        const extractedMap = processStringFinal(messageData.res);
-        for (const videoId in extractedMap) video_map[videoId] = extractedMap[videoId];
-        console.log("searchSingle2 res", video_map);
-      } else if ('DBDY_INFO_ACCQURE_RES' === action) {
-        video_url = messageData.res.aweme_detail.video.play_addr.url_list[0x0];
-        console.log("searchSingle3 res", video_url);
+  } else if ('DBDY_SEARCH_ACCQURE_RES' === action) {
+    const awemeInfos = [];
+    (messageData.res?.data || []).forEach(item => {
+      if (item.aweme_info && item.aweme_info.aweme_id) {
+        video_map[item.aweme_info.aweme_id] = item.aweme_info.video.play_addr.url_list[0x2];
+        awemeInfos.push(item.aweme_info);
+      } else {
+        console.log("item", item);
       }
-    }
+    });
+    console.log("searchSingle res", video_map);
+    enqueueAutoDownloads(awemeInfos);
+  } else if ("DBDY_SEARCH_FIRST_ACCQURE_RES" === action) {
+    const extractedMap = processStringFinal(messageData.res);
+    for (const videoId in extractedMap) video_map[videoId] = extractedMap[videoId];
+    console.log("searchSingle2 res", video_map);
+  } else if ('DBDY_INFO_ACCQURE_RES' === action) {
+    video_url = messageData.res.aweme_detail.video.play_addr.url_list[0x0];
+    console.log("searchSingle3 res", video_url);
   }
 }, false);
