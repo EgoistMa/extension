@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell -Command \"\\(Get-Content ''c:\\\\Users\\\\EGOIST\\\\Documents\\\\extension\\\\samplebaiying-html-page.html'' -Raw\\)\")"
+    ]
+  }
+}
