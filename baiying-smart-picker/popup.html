@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>百应智能选品</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 620px;
+      min-height: 200px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      font-size: 13px;
+      background: #f5f5f5;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 14px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header h1 {
+      font-size: 16px;
+      font-weight: 500;
+    }
+
+    .header .status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ff4d4f;
+    }
+
+    .status-dot.online {
+      background: #52c41a;
+    }
+
+    .count-badge {
+      background: rgba(255,255,255,0.2);
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+    }
+
+    /* 未检测到页面时的欢迎界面 */
+    .welcome-panel {
+      background: white;
+      padding: 30px;
+      text-align: center;
+    }
+
+    .welcome-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    .welcome-title {
+      font-size: 18px;
+      font-weight: 500;
+      color: #333;
+      margin-bottom: 8px;
+    }
+
+    .welcome-desc {
+      color: #666;
+      font-size: 13px;
+      margin-bottom: 20px;
+      line-height: 1.6;
+    }
+
+    .btn-go-baiying {
+      display: inline-block;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 12px 32px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .btn-go-baiying:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    /* 工具栏 */
+    .toolbar {
+      background: white;
+      padding: 10px 16px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .toolbar-row {
+      display: flex;
+      gap: 8px;
+      width: 100%;
+    }
+
+    .search-box {
+      flex: 1;
+      padding: 6px 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
+    .search-box:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .btn {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background: #667eea;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #5a6fd6;
+    }
+
+    .btn-success {
+      background: #52c41a;
+      color: white;
+    }
+
+    .btn-success:hover {
+      background: #45a817;
+    }
+
+    .btn-secondary {
+      background: #e8e8e8;
+      color: #333;
+    }
+
+    .btn-secondary:hover {
+      background: #ddd;
+    }
+
+    .btn-recommend {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .btn-recommend:hover {
+      opacity: 0.9;
+    }
+
+    .btn-send {
+      background: #fa8c16;
+      color: white;
+    }
+
+    .btn-send:hover {
+      background: #d87a14;
+    }
+
+    /* 智能面板 */
+    .smart-panel {
+      background: #fafafa;
+      border-bottom: 1px solid #eee;
+      padding: 12px 16px;
+    }
+
+    .smart-panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      font-weight: 500;
+      color: #333;
+    }
+
+    .btn-close {
+      background: none;
+      border: none;
+      font-size: 18px;
+      cursor: pointer;
+      color: #999;
+    }
+
+    .btn-close:hover {
+      color: #333;
+    }
+
+    .smart-panel-body {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: flex-end;
+    }
+
+    .weight-group {
+      flex: 1;
+      min-width: 120px;
+    }
+
+    .weight-group label {
+      display: block;
+      font-size: 11px;
+      color: #666;
+      margin-bottom: 4px;
+    }
+
+    .weight-group input[type="range"] {
+      width: 100%;
+      cursor: pointer;
+    }
+
+    .config-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .config-group label {
+      font-size: 11px;
+      color: #666;
+    }
+
+    .config-group select,
+    .config-group input[type="text"] {
+      padding: 4px 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 11px;
+    }
+
+    .config-group input[type="text"] {
+      width: 180px;
+    }
+
+    /* 产品表格 */
+    .content {
+      max-height: 350px;
+      overflow-y: auto;
+      background: white;
+    }
+
+    .product-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .product-table th {
+      background: #fafafa;
+      padding: 8px 10px;
+      text-align: left;
+      font-weight: 500;
+      font-size: 11px;
+      color: #666;
+      position: sticky;
+      top: 0;
+      border-bottom: 1px solid #eee;
+    }
+
+    .product-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 12px;
+    }
+
+    .product-table tr:hover {
+      background: #f9f9ff;
+    }
+
+    .product-name {
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: #333;
+    }
+
+    .commission-rate { color: #ff4d4f; font-weight: 600; }
+    .commission-amount { color: #52c41a; font-weight: 600; }
+    .price { color: #666; }
+    .sales { color: #1890ff; font-weight: 500; }
+    .score { color: #faad14; font-weight: 500; }
+    .total-score { color: #722ed1; font-weight: 700; }
+
+    /* 状态提示 */
+    .status-bar {
+      background: #e6f7ff;
+      border-bottom: 1px solid #91d5ff;
+      padding: 8px 16px;
+      font-size: 12px;
+      color: #1890ff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-bar.success {
+      background: #f6ffed;
+      border-color: #b7eb8f;
+      color: #52c41a;
+    }
+
+    .status-bar.error {
+      background: #fff2f0;
+      border-color: #ffccc7;
+      color: #ff4d4f;
+    }
+
+    .status-bar.warning {
+      background: #fffbe6;
+      border-color: #ffe58f;
+      color: #faad14;
+    }
+
+    .loading {
+      padding: 40px;
+      text-align: center;
+      color: #666;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #333;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-size: 12px;
+      opacity: 0;
+      transition: opacity 0.3s;
+      z-index: 100;
+    }
+
+    .toast.show {
+      opacity: 1;
+    }
+
+    .auto-send-info {
+      background: #fffbe6;
+      border: 1px solid #ffe58f;
+      border-radius: 4px;
+      padding: 8px 12px;
+      margin: 10px 16px;
+      font-size: 12px;
+      color: #d48806;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .countdown {
+      font-weight: 600;
+      color: #fa8c16;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🎯 百应智能选品</h1>
+    <div class="status">
+      <span class="status-dot" id="statusDot"></span>
+      <span class="count-badge" id="productCount">0 个产品</span>
+    </div>
+  </div>
+
+  <!-- 欢迎界面（未检测到页面时显示） -->
+  <div class="welcome-panel" id="welcomePanel">
+    <div class="welcome-icon">🛒</div>
+    <div class="welcome-title">欢迎使用百应智能选品</div>
+    <div class="welcome-desc">
+      请先前往百应选品广场，<br>
+      插件将自动解析产品并智能推荐
+    </div>
+    <a href="https://buyin.jinritemai.com/dashboard/merch-picking-hall/merch-picking-library"
+       target="_blank"
+       class="btn-go-baiying"
+       id="goBaiyingBtn">
+      前往百应选品广场 →
+    </a>
+  </div>
+
+  <!-- 产品面板（检测到产品时显示） -->
+  <div id="productPanel" style="display: none;">
+    <!-- 状态栏 -->
+    <div class="status-bar" id="statusBar" style="display: none;">
+      <span id="statusIcon">⏳</span>
+      <span id="statusText">正在准备...</span>
+    </div>
+
+    <!-- 工具栏 -->
+    <div class="toolbar">
+      <div class="toolbar-row">
+        <input type="text" class="search-box" id="searchBox" placeholder="搜索产品名称...">
+        <button class="btn btn-primary" id="refreshBtn">🔄 刷新</button>
+      </div>
+      <div class="toolbar-row">
+        <button class="btn btn-recommend" id="smartBtn">🎯 智能推荐</button>
+        <button class="btn btn-send" id="sendBtn">📤 发送到服务</button>
+        <button class="btn btn-success" id="copyBtn">📋 复制</button>
+        <button class="btn btn-secondary" id="exportBtn">📥 导出</button>
+      </div>
+    </div>
+
+    <!-- 智能设置面板 -->
+    <div class="smart-panel" id="smartPanel" style="display: none;">
+      <div class="smart-panel-header">
+        <span>⚙️ 智能选品设置</span>
+        <button class="btn-close" id="closePanelBtn">×</button>
+      </div>
+      <div class="smart-panel-body">
+        <div class="weight-group">
+          <label>佣金权重: <span id="commissionVal">40%</span></label>
+          <input type="range" id="commissionWeight" min="0" max="100" value="40">
+        </div>
+        <div class="weight-group">
+          <label>销量权重: <span id="salesVal">35%</span></label>
+          <input type="range" id="salesWeight" min="0" max="100" value="35">
+        </div>
+        <div class="weight-group">
+          <label>评分权重: <span id="scoreVal">25%</span></label>
+          <input type="range" id="scoreWeight" min="0" max="100" value="25">
+        </div>
+        <div class="config-group">
+          <label>推荐数量:</label>
+          <select id="topCount">
+            <option value="5">Top 5</option>
+            <option value="10" selected>Top 10</option>
+            <option value="20">Top 20</option>
+            <option value="0">全部</option>
+          </select>
+        </div>
+        <div class="config-group">
+          <label>服务地址:</label>
+          <input type="text" id="serverUrl" value="http://localhost:5000/api/products">
+        </div>
+        <button class="btn btn-recommend" id="applySmartBtn">应用推荐</button>
+      </div>
+    </div>
+
+    <!-- 产品列表 -->
+    <div class="content" id="content">
+      <div class="loading">正在加载产品数据...</div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
