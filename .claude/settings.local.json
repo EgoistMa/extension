@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(powershell -Command \"\\(Get-Content ''c:\\\\Users\\\\EGOIST\\\\Documents\\\\extension\\\\samplebaiying-html-page.html'' -Raw\\)\")"
+      "Bash(powershell -Command \"\\(Get-Content ''c:\\\\Users\\\\EGOIST\\\\Documents\\\\extension\\\\samplebaiying-html-page.html'' -Raw\\)\")",
+      "Bash(python:*)"
     ]
   }
 }
