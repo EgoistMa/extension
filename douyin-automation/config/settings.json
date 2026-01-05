@@ -1,0 +1,39 @@
+{
+  "filter": {
+    "min_rating": 90,
+    "commission_min": 3.5,
+    "commission_max": 20.0,
+    "commission_type": "amount",
+    "price_min": 20.0,
+    "price_max": 50.0,
+    "monthly_sales_min": 10000
+  },
+  "douyin_video": {
+    "min_duration": 45.0,
+    "max_duration": 80.0,
+    "min_likes": 1000,
+    "download_count": 5
+  },
+  "jianying": {
+    "app_path": "",
+    "template_dir": "",
+    "draft_dir": "",
+    "export_timeout": 1200
+  },
+  "doubao": {
+    "api_key": "",
+    "model": "doubao-1-5-pro-32k",
+    "endpoint": "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
+  },
+  "output": {
+    "base_dir": ""
+  },
+  "server": {
+    "port": 5000,
+    "host": "127.0.0.1"
+  },
+  "browser": {
+    "headless": false,
+    "debug": true
+  }
+}

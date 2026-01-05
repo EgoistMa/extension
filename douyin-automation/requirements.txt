@@ -1,0 +1,19 @@
+# GUI
+PyQt6>=6.4.0
+
+# Browser Automation
+DrissionPage>=4.0.0
+
+# HTTP Server
+Flask>=3.0.0
+flask-cors>=4.0.0
+
+# Jianying Automation
+pyJianYingDraft>=0.2.5
+uiautomation>=2.0.0
+
+# HTTP Requests
+requests>=2.31.0
+
+# Utilities
+Pillow>=10.0.0

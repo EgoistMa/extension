@@ -1,0 +1,17 @@
+{
+  "min_duration": 45.0,
+  "max_duration": 80.0,
+  "min_likes": 1000,
+  "sort_by": "digg_time",
+  "download_count": 5,
+  "scroll_times": 0,
+  "output_dir": "C:\\Users\\EGOIST\\Downloads\\baiying_videos",
+  "headless": false,
+  "debug": true,
+  "auto_jianying": true,
+  "jianying_template": "C:\\Users\\EGOIST\\Documents\\extension\\baiying-video-downloader\\MB12.15",
+  "jianying_draft_dir": "C:\\Users\\EGOIST\\AppData\\Local\\JianyingPro\\User Data\\Projects\\com.lveditor.draft",
+  "jianying_app_path": "C:\\Users\\EGOIST\\Desktop\\剪映5.9破解版（window版）\\JianyingPro\\5.9.0.11632\\JianyingPro.exe",
+  "port": 5000,
+  "auto_download": true
+}

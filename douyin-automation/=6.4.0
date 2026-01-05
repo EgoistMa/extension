@@ -1,0 +1,12 @@
+Collecting PyQt6
+  Using cached pyqt6-6.10.1-cp39-abi3-win_amd64.whl.metadata (2.2 kB)
+Collecting PyQt6-sip<14,>=13.8 (from PyQt6)
+  Downloading pyqt6_sip-13.10.3-cp311-cp311-win_amd64.whl.metadata (516 bytes)
+Collecting PyQt6-Qt6<6.11.0,>=6.10.0 (from PyQt6)
+  Using cached pyqt6_qt6-6.10.1-py3-none-win_amd64.whl.metadata (552 bytes)
+Using cached pyqt6-6.10.1-cp39-abi3-win_amd64.whl (26.0 MB)
+Using cached pyqt6_qt6-6.10.1-py3-none-win_amd64.whl (76.7 MB)
+Downloading pyqt6_sip-13.10.3-cp311-cp311-win_amd64.whl (54 kB)
+Installing collected packages: PyQt6-Qt6, PyQt6-sip, PyQt6
+
+Successfully installed PyQt6-6.10.1 PyQt6-Qt6-6.10.1 PyQt6-sip-13.10.3
