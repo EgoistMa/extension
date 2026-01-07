@@ -33,8 +33,10 @@ class Config:
         # 剪映设置
         "jianying": {
             "app_path": "",             # 剪映应用路径
-            "template_dir": "",         # 模板目录
+            "template_dir": "",         # 当前模板目录
+            "template_dirs": [],        # 模板目录列表
             "draft_dir": "",            # 草稿目录
+            "export_dir": "",           # 导出目录
             "export_timeout": 1200,     # 导出超时(秒)
         },
         # 豆包API
@@ -42,6 +44,17 @@ class Config:
             "api_key": "",
             "model": "doubao-1-5-pro-32k",
             "endpoint": "https://ark.cn-beijing.volces.com/api/v3/chat/completions",
+        },
+        # 抖音上传设置
+        "douyin_upload": {
+            "visibility": "private",         # public/friends/private
+            "download_permission": "allow",  # allow/deny
+            "schedule": {
+                "enable": True,
+                "date": "",
+                "time": "",
+                "offset_minutes": 1,
+            },
         },
         # 输出设置
         "output": {

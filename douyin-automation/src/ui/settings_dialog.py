@@ -4,9 +4,10 @@ from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QTabWidget, QWidget,
     QFormLayout, QLineEdit, QPushButton, QLabel, QGroupBox,
     QFileDialog, QSpinBox, QDoubleSpinBox, QCheckBox,
-    QDialogButtonBox, QMessageBox
+    QDialogButtonBox, QMessageBox, QComboBox, QDateEdit, QTimeEdit
 )
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QDate, QTime
+from pathlib import Path
 
 from core.config import Config
 
@@ -17,6 +18,7 @@ class SettingsDialog(QDialog):
     def __init__(self, config: Config, parent=None):
         super().__init__(parent)
         self.config = config
+        self._template_dirs: list[str] = []
         self.init_ui()
         self.load_settings()
 
@@ -38,6 +40,9 @@ class SettingsDialog(QDialog):
 
         # 豆包API设置
         tab_widget.addTab(self.create_doubao_tab(), "AI设置")
+
+        # 上传设置
+        tab_widget.addTab(self.create_upload_tab(), "上传设置")
 
         # 其他设置
         tab_widget.addTab(self.create_other_tab(), "其他")
@@ -114,6 +119,16 @@ class SettingsDialog(QDialog):
         self.download_count.setRange(1, 50)
         douyin_layout.addRow("下载数量:", self.download_count)
 
+        # 视频保存目录
+        output_row = QHBoxLayout()
+        self.output_dir = QLineEdit()
+        self.output_dir.setPlaceholderText("视频保存目录")
+        output_row.addWidget(self.output_dir)
+        btn_browse_output = QPushButton("浏览")
+        btn_browse_output.clicked.connect(lambda: self.browse_folder(self.output_dir))
+        output_row.addWidget(btn_browse_output)
+        douyin_layout.addRow("视频保存目录:", output_row)
+
         layout.addWidget(douyin_group)
         layout.addStretch()
 
@@ -137,15 +152,19 @@ class SettingsDialog(QDialog):
         app_path_row.addWidget(btn_browse_app)
         form_layout.addRow("剪映路径:", app_path_row)
 
-        # 模板目录
+        # 模板草稿目录
         template_row = QHBoxLayout()
-        self.jianying_template = QLineEdit()
-        self.jianying_template.setPlaceholderText("剪映模板项目目录")
-        template_row.addWidget(self.jianying_template)
-        btn_browse_template = QPushButton("浏览")
-        btn_browse_template.clicked.connect(lambda: self.browse_folder(self.jianying_template))
+        self.jianying_template_combo = QComboBox()
+        self.jianying_template_combo.setMinimumWidth(260)
+        template_row.addWidget(self.jianying_template_combo)
+        btn_browse_template = QPushButton("上传模板")
+        btn_browse_template.clicked.connect(self.add_template_dir)
         template_row.addWidget(btn_browse_template)
-        form_layout.addRow("模板目录:", template_row)
+        form_layout.addRow("模板草稿目录:", template_row)
+
+        self.template_hint = QLabel("尚未上传模板，请点击“上传模板”选择剪映草稿目录")
+        self.template_hint.setStyleSheet("color: gray;")
+        form_layout.addRow("", self.template_hint)
 
         # 草稿目录
         draft_row = QHBoxLayout()
@@ -156,6 +175,16 @@ class SettingsDialog(QDialog):
         btn_browse_draft.clicked.connect(lambda: self.browse_folder(self.jianying_draft))
         draft_row.addWidget(btn_browse_draft)
         form_layout.addRow("草稿目录:", draft_row)
+
+        # 导出目录
+        export_row = QHBoxLayout()
+        self.jianying_export_dir = QLineEdit()
+        self.jianying_export_dir.setPlaceholderText("剪映导出目录")
+        export_row.addWidget(self.jianying_export_dir)
+        btn_browse_export = QPushButton("浏览")
+        btn_browse_export.clicked.connect(lambda: self.browse_folder(self.jianying_export_dir))
+        export_row.addWidget(btn_browse_export)
+        form_layout.addRow("导出目录:", export_row)
 
         # 导出超时
         self.export_timeout = QSpinBox()
@@ -209,25 +238,51 @@ class SettingsDialog(QDialog):
 
         return widget
 
+    def create_upload_tab(self) -> QWidget:
+        """创建上传设置标签页"""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+
+        group = QGroupBox("抖音上传设置")
+        form_layout = QFormLayout(group)
+
+        self.upload_visibility = QComboBox()
+        self.upload_visibility.addItem("公开", "public")
+        self.upload_visibility.addItem("好友可见", "friends")
+        self.upload_visibility.addItem("仅自己可见", "private")
+        form_layout.addRow("谁可以看:", self.upload_visibility)
+
+        self.upload_download_permission = QComboBox()
+        self.upload_download_permission.addItem("允许", "allow")
+        self.upload_download_permission.addItem("不允许", "deny")
+        form_layout.addRow("保存权限:", self.upload_download_permission)
+
+        self.upload_schedule_enabled = QCheckBox("定时发布")
+        form_layout.addRow("", self.upload_schedule_enabled)
+
+        self.upload_schedule_date = QDateEdit()
+        self.upload_schedule_date.setCalendarPopup(True)
+        self.upload_schedule_date.setDisplayFormat("yyyy-MM-dd")
+        form_layout.addRow("定时日期:", self.upload_schedule_date)
+
+        self.upload_schedule_time = QTimeEdit()
+        self.upload_schedule_time.setDisplayFormat("HH:mm")
+        form_layout.addRow("定时时间:", self.upload_schedule_time)
+
+        self.upload_schedule_offset = QSpinBox()
+        self.upload_schedule_offset.setRange(1, 1440)
+        self.upload_schedule_offset.setSuffix(" 分钟")
+        form_layout.addRow("延后时间:", self.upload_schedule_offset)
+
+        layout.addWidget(group)
+        layout.addStretch()
+
+        return widget
+
     def create_other_tab(self) -> QWidget:
         """创建其他设置标签页"""
         widget = QWidget()
         layout = QVBoxLayout(widget)
-
-        # 输出设置
-        output_group = QGroupBox("输出设置")
-        output_layout = QFormLayout(output_group)
-
-        output_row = QHBoxLayout()
-        self.output_dir = QLineEdit()
-        self.output_dir.setPlaceholderText("项目输出目录")
-        output_row.addWidget(self.output_dir)
-        btn_browse_output = QPushButton("浏览")
-        btn_browse_output.clicked.connect(lambda: self.browse_folder(self.output_dir))
-        output_row.addWidget(btn_browse_output)
-        output_layout.addRow("输出目录:", output_row)
-
-        layout.addWidget(output_group)
 
         # 浏览器设置
         browser_group = QGroupBox("浏览器设置")
@@ -267,6 +322,35 @@ class SettingsDialog(QDialog):
         if path:
             line_edit.setText(path)
 
+    def add_template_dir(self):
+        """添加模板草稿目录"""
+        path = QFileDialog.getExistingDirectory(self, "选择剪映草稿模板目录")
+        if not path:
+            return
+        if path not in self._template_dirs:
+            self._template_dirs.append(path)
+        self._refresh_template_combo(path)
+
+    def _refresh_template_combo(self, selected: str = ""):
+        """刷新模板下拉列表"""
+        self.jianying_template_combo.clear()
+        for path in self._template_dirs:
+            name = Path(path).name or path
+            self.jianying_template_combo.addItem(name, path)
+        if self._template_dirs:
+            self.template_hint.hide()
+            if selected:
+                index = self.jianying_template_combo.findData(selected)
+                if index >= 0:
+                    self.jianying_template_combo.setCurrentIndex(index)
+        else:
+            self.template_hint.show()
+
+    def _current_template_dir(self) -> str:
+        """获取当前选择的模板路径"""
+        data = self.jianying_template_combo.currentData()
+        return data or ""
+
     def load_settings(self):
         """加载设置"""
         # 筛选设置
@@ -284,14 +368,44 @@ class SettingsDialog(QDialog):
 
         # 剪映设置
         self.jianying_app_path.setText(self.config.get('jianying.app_path', ''))
-        self.jianying_template.setText(self.config.get('jianying.template_dir', ''))
+        template_dir = self.config.get('jianying.template_dir', '')
+        template_dirs = self.config.get('jianying.template_dirs', [])
+        if template_dir and template_dir not in template_dirs:
+            template_dirs.append(template_dir)
+        self._template_dirs = template_dirs
+        self._refresh_template_combo(template_dir)
         self.jianying_draft.setText(self.config.get('jianying.draft_dir', ''))
+        self.jianying_export_dir.setText(self.config.get('jianying.export_dir', ''))
         self.export_timeout.setValue(int(self.config.get('jianying.export_timeout', 1200)))
 
         # 豆包设置
         self.doubao_api_key.setText(self.config.get('doubao.api_key', ''))
         self.doubao_model.setText(self.config.get('doubao.model', 'doubao-1-5-pro-32k'))
         self.doubao_endpoint.setText(self.config.get('doubao.endpoint', ''))
+
+        # 上传设置
+        visibility = self.config.get('douyin_upload.visibility', 'private')
+        index = self.upload_visibility.findData(visibility)
+        if index >= 0:
+            self.upload_visibility.setCurrentIndex(index)
+        permission = self.config.get('douyin_upload.download_permission', 'allow')
+        index = self.upload_download_permission.findData(permission)
+        if index >= 0:
+            self.upload_download_permission.setCurrentIndex(index)
+        self.upload_schedule_enabled.setChecked(bool(self.config.get('douyin_upload.schedule.enable', True)))
+        schedule_date = self.config.get('douyin_upload.schedule.date', '')
+        schedule_time = self.config.get('douyin_upload.schedule.time', '')
+        date_value = QDate.fromString(schedule_date, "yyyy-MM-dd")
+        time_value = QTime.fromString(schedule_time, "HH:mm")
+        if date_value.isValid():
+            self.upload_schedule_date.setDate(date_value)
+        else:
+            self.upload_schedule_date.setDate(QDate.currentDate())
+        if time_value.isValid():
+            self.upload_schedule_time.setTime(time_value)
+        else:
+            self.upload_schedule_time.setTime(QTime.currentTime())
+        self.upload_schedule_offset.setValue(int(self.config.get('douyin_upload.schedule.offset_minutes', 1)))
 
         # 其他设置
         self.output_dir.setText(self.config.get('output.base_dir', ''))
@@ -316,14 +430,24 @@ class SettingsDialog(QDialog):
 
         # 剪映设置
         self.config.set('jianying.app_path', self.jianying_app_path.text())
-        self.config.set('jianying.template_dir', self.jianying_template.text())
+        self.config.set('jianying.template_dirs', self._template_dirs)
+        self.config.set('jianying.template_dir', self._current_template_dir())
         self.config.set('jianying.draft_dir', self.jianying_draft.text())
+        self.config.set('jianying.export_dir', self.jianying_export_dir.text())
         self.config.set('jianying.export_timeout', self.export_timeout.value())
 
         # 豆包设置
         self.config.set('doubao.api_key', self.doubao_api_key.text())
         self.config.set('doubao.model', self.doubao_model.text())
         self.config.set('doubao.endpoint', self.doubao_endpoint.text())
+
+        # 上传设置
+        self.config.set('douyin_upload.visibility', self.upload_visibility.currentData())
+        self.config.set('douyin_upload.download_permission', self.upload_download_permission.currentData())
+        self.config.set('douyin_upload.schedule.enable', self.upload_schedule_enabled.isChecked())
+        self.config.set('douyin_upload.schedule.date', self.upload_schedule_date.date().toString("yyyy-MM-dd"))
+        self.config.set('douyin_upload.schedule.time', self.upload_schedule_time.time().toString("HH:mm"))
+        self.config.set('douyin_upload.schedule.offset_minutes', self.upload_schedule_offset.value())
 
         # 其他设置
         self.config.set('output.base_dir', self.output_dir.text())
