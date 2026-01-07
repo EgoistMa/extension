@@ -13,18 +13,32 @@
     "max_duration": 180.0,
     "min_likes": 1,
     "download_count": 1,
-    "scroll_times": 1
+    "scroll_times": 0
   },
   "jianying": {
-    "app_path": "",
-    "template_dir": "",
-    "draft_dir": "",
+    "app_path": "C:/Users/EGOIST/Desktop/剪映5.9破解版（window版）/JianyingPro/5.9.0.11632/JianyingPro.exe",
+    "template_dir": "C:/Users/EGOIST/Documents/xwechat_files/wxid_ce8reykpkyr511_03fd/msg/file/2026-01/MB12.15",
+    "template_dirs": [
+      "C:/Users/EGOIST/Documents/xwechat_files/wxid_ce8reykpkyr511_03fd/msg/file/2026-01/MB12.15"
+    ],
+    "draft_dir": "C:\\Users\\EGOIST\\AppData\\Local\\JianyingPro\\User Data\\Projects\\com.lveditor.draft",
+    "export_dir": "C:/Users/EGOIST/Desktop",
     "export_timeout": 1200
   },
   "doubao": {
-    "api_key": "",
+    "api_key": "Bearer 148cad4d-631d-4419-b991-b551d85aab5e",
     "model": "doubao-1-5-pro-32k",
     "endpoint": "https://ark.cn-beijing.volces.com/api/v3/chat/completions"
+  },
+  "douyin_upload": {
+    "visibility": "private",
+    "download_permission": "allow",
+    "schedule": {
+      "enable": true,
+      "date": "2026-01-08",
+      "time": "23:59",
+      "offset_minutes": 1
+    }
   },
   "output": {
     "base_dir": ""
@@ -38,6 +52,6 @@
     "debug": true
   },
   "picking": {
-    "product_count": 3
+    "product_count": 1
   }
 }

@@ -106,6 +106,7 @@ class ExportedVideo:
     title: str = ""                     # 发布标题
     description: str = ""               # 发布描述
     tags: list = field(default_factory=list)  # 标签列表
+    cart_link: str = ""                 # 小黄车链接
 
     # 上传状态
     is_uploaded: bool = False           # 是否已上传

@@ -632,6 +632,10 @@ class ExportWorker(QThread):
                 self.finished.emit(False, "导出已取消")
                 return
 
+            # 等待2秒再打开导出窗口
+            self.log.emit("[导出] 草稿加载完成，等待2秒...")
+            time_module.sleep(2)
+
             self.log.emit(f"[导出] 开始自动导出草稿: {draft_name}")
             self.progress.emit("正在导出视频...")
 

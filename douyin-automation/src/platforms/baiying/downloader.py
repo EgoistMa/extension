@@ -193,6 +193,7 @@ class MaterialDownloader:
                 "main_image": product.main_image,
                 "images": product.images,
                 "video_url": product.video_url,
+                "cart_link": product.cart_link,
 
                 # 本地文件路径
                 "local_images": product.local_images,

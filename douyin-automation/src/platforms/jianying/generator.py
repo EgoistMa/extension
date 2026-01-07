@@ -408,6 +408,19 @@ class JianyingGenerator:
             return export_duration
         return self.template_content.get('duration', 0)
 
+    def _kill_jianying(self) -> None:
+        """关闭剪映进程"""
+        import time
+        try:
+            if os.name == 'nt':
+                # 尝试关闭剪映相关进程
+                for proc_name in ['JianyingPro.exe', 'JianyingPro', 'CapCut.exe']:
+                    subprocess.run(['taskkill', '/F', '/IM', proc_name],
+                                 capture_output=True, timeout=10)
+                time.sleep(3)  # 等待进程完全退出和文件句柄释放
+        except Exception:
+            pass
+
     def generate_project(
         self,
         video_files: List[str],
@@ -436,6 +449,9 @@ class JianyingGenerator:
         if not video_files:
             raise ValueError("视频文件列表不能为空")
 
+        # 关闭剪映以避免文件锁定
+        self._kill_jianying()
+
         def get_video_info(video_path: str) -> dict:
             if video_duration_overrides:
                 key = str(Path(video_path).absolute())
@@ -449,8 +465,12 @@ class JianyingGenerator:
                     }
             return self._get_video_info(video_path)
 
-        # 创建项目目录
+        # 创建项目目录 - 如果已存在则先删除
         project_dir = self.output_dir / project_name
+        if project_dir.exists():
+            import time as time_mod
+            shutil.rmtree(project_dir)
+            time_mod.sleep(1)  # 等待文件系统释放
         project_dir.mkdir(parents=True, exist_ok=True)
 
         # 复制模板文件

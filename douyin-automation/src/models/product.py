@@ -39,6 +39,7 @@ class Product:
     main_image: str = ""                # 主图URL
     images: List[str] = field(default_factory=list)  # 产品图片列表
     video_url: str = ""                 # 主视频URL
+    cart_link: str = ""                 # 小黄车链接
 
     # 本地路径
     local_images: List[str] = field(default_factory=list)  # 已下载的图片路径

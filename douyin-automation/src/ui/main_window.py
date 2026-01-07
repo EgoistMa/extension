@@ -20,7 +20,7 @@ from models.project import ProjectStatus
 from models.video import ExportedVideo
 from platforms.douyin import DouyinUploader
 
-TEST_ASSET_DIR = r"C:\Users\21346\OneDrive\桌面\jianying_test"
+TEST_ASSET_DIR = r"C:\Users\EGOIST\Downloads\douyin-automation\materials\3757306711615078574_千丝黄油云朵华夫饼蛋糕整箱早餐优选美味面"
 
 
 class WorkerThread(QThread):
@@ -307,6 +307,21 @@ class PickingThread(QThread):
                 browser_manager, products, output_dir
             )
 
+            # ========== 阶段3: 剪映生成项目并导出 ==========
+            self.log_signal.emit("\n" + "=" * 60)
+            self.log_signal.emit("阶段3: 剪映生成&导出")
+            self.log_signal.emit("=" * 60)
+
+            exported_videos = self._generate_and_export_jianying(products, output_dir)
+
+            # ========== 阶段4: 上传到抖音 ==========
+            if exported_videos:
+                self.log_signal.emit("\n" + "=" * 60)
+                self.log_signal.emit("阶段4: 抖音上传")
+                self.log_signal.emit("=" * 60)
+
+                self._upload_to_douyin(browser_manager, exported_videos, output_dir)
+
             self.finished_signal.emit(
                 True,
                 f"全流程完成！\n成功处理 {len(products)} 个产品\n素材已保存到: {output_dir}"
@@ -533,6 +548,222 @@ class PickingThread(QThread):
 
         except Exception as e:
             self.log_signal.emit(f"  更新产品信息失败: {e}")
+
+    def _generate_and_export_jianying(self, products, output_dir: Path) -> list:
+        """为每个产品生成剪映项目并导出
+
+        Args:
+            products: 产品列表
+            output_dir: 输出目录
+
+        Returns:
+            导出的视频列表 [(product, exported_path), ...]
+        """
+        import json
+        from platforms.jianying.generator import JianyingGenerator
+        from platforms.jianying.exporter import JianyingExporter
+
+        template_dir = self.config.get('jianying.template_dir', '') if self.config else ''
+        if not template_dir or not Path(template_dir).exists():
+            self.log_signal.emit("⚠️ 警告: 未配置剪映模板目录，跳过剪映生成")
+            self.log_signal.emit("   请在设置中配置剪映模板目录")
+            return []
+
+        exported_videos = []
+        total = len(products)
+
+        for i, product in enumerate(products):
+            try:
+                self.log_signal.emit(f"\n[{i+1}/{total}] 生成剪映项目: {product.title[:40]}...")
+                self.progress_signal.emit(f"生成剪映项目 {i+1}/{total}", i+1, total)
+
+                # 获取产品目录
+                product_dir = self._get_product_dir(output_dir, product)
+                json_path = product_dir / "product_info.json"
+
+                if not json_path.exists():
+                    self.log_signal.emit(f"  ⚠️ 产品信息文件不存在，跳过")
+                    continue
+
+                # 读取产品信息获取视频和图片
+                with open(json_path, 'r', encoding='utf-8') as f:
+                    product_info = json.load(f)
+
+                # 获取下载的抖音视频
+                douyin_videos = product_info.get('douyin_videos', [])
+                video_paths = []
+                for v in douyin_videos:
+                    local_path = v.get('local_path', '')
+                    if local_path and Path(local_path).exists():
+                        video_paths.append(local_path)
+
+                if not video_paths:
+                    self.log_signal.emit(f"  ⚠️ 未找到下载的视频文件，跳过")
+                    continue
+
+                # 获取产品图片 - 从 local_images 字段读取
+                image_paths = []
+                local_images = product_info.get('local_images', [])
+                for img_path in local_images:
+                    if img_path and Path(img_path).exists():
+                        image_paths.append(img_path)
+
+                self.log_signal.emit(f"  视频: {len(video_paths)} 个, 图片: {len(image_paths)} 个")
+
+                # 生成剪映项目
+                project_name = f"{product.product_id}_{product.title[:15]}"
+                project_name = project_name.replace(' ', '_').replace('/', '_')
+
+                generator = JianyingGenerator(template_dir, config=self.config)
+                project_path = generator.generate_project(
+                    video_files=video_paths,
+                    project_name=project_name,
+                    image_files=image_paths if image_paths else None,
+                    on_log=lambda msg: self.log_signal.emit(f"  {msg}")
+                )
+
+                self.log_signal.emit(f"  剪映项目已生成: {project_path}")
+
+                # 导出视频
+                self.log_signal.emit(f"  开始导出视频...")
+                exporter = JianyingExporter(self.config)
+
+                export_dir = self.config.get('jianying.export_dir', '') if self.config else ''
+                if not export_dir:
+                    export_dir = str(product_dir / "export")
+                Path(export_dir).mkdir(parents=True, exist_ok=True)
+
+                output_path = str(Path(export_dir) / f"{project_name}.mp4")
+
+                exported = exporter.export_draft(
+                    draft_path=project_path,
+                    output_path=output_path,
+                    on_log=lambda msg: self.log_signal.emit(f"  {msg}"),
+                    on_progress=lambda step, cur, total: self.progress_signal.emit(step, cur, total)
+                )
+
+                if exported and Path(output_path).exists():
+                    self.log_signal.emit(f"  ✓ 导出成功: {output_path}")
+                    exported_videos.append((product, output_path, product_info))
+
+                    # 更新产品信息
+                    product_info['exported_video'] = output_path
+                    product_info['jianying_project'] = project_path
+                    with open(json_path, 'w', encoding='utf-8') as f:
+                        json.dump(product_info, f, ensure_ascii=False, indent=2)
+                else:
+                    self.log_signal.emit(f"  ✗ 导出失败")
+
+            except Exception as e:
+                import traceback
+                self.log_signal.emit(f"  ✗ 处理失败: {e}")
+                traceback.print_exc()
+
+        # 汇总
+        self.log_signal.emit("\n" + "=" * 60)
+        self.log_signal.emit(f"剪映生成汇总: 成功 {len(exported_videos)}/{total} 个")
+        self.log_signal.emit("=" * 60)
+
+        return exported_videos
+
+    def _upload_to_douyin(self, browser_manager, exported_videos: list, output_dir: Path):
+        """上传视频到抖音
+
+        Args:
+            browser_manager: 浏览器管理器
+            exported_videos: [(product, video_path, product_info), ...]
+            output_dir: 输出目录
+        """
+        import json
+        from platforms.douyin.uploader import DouyinUploader
+        from models.video import ExportedVideo
+
+        if not exported_videos:
+            self.log_signal.emit("没有可上传的视频")
+            return
+
+        # 创建上传器
+        uploader = DouyinUploader(browser_manager, self.account_id, self.config)
+        self.log_signal.emit("正在打开抖音创作者中心...")
+        uploader.start()
+
+        if not uploader.is_logged_in():
+            self.log_signal.emit("请在浏览器中登录抖音创作者中心...")
+            if not uploader.wait_for_login(timeout=300):
+                self.log_signal.emit("⚠️ 登录超时，跳过上传")
+                return
+
+        self.log_signal.emit("已登录抖音创作者中心")
+
+        total = len(exported_videos)
+        success_count = 0
+
+        for i, (product, video_path, product_info) in enumerate(exported_videos):
+            try:
+                self.log_signal.emit(f"\n[{i+1}/{total}] 上传: {product.title[:40]}...")
+                self.progress_signal.emit(f"上传视频 {i+1}/{total}", i+1, total)
+
+                # 准备封面图片 (从产品图片中选择) - 从 local_images 字段读取
+                cover_paths = []
+                local_images = product_info.get('local_images', [])
+                for img_path in local_images:
+                    if img_path and Path(img_path).exists():
+                        cover_paths.append(img_path)
+                        if len(cover_paths) >= 2:  # 竖封面和横封面
+                            break
+
+                # 创建 ExportedVideo 对象 - 优先使用 product_info 中的数据
+                product_title = product_info.get('title', '') or product.title
+                cart_link = product_info.get('cart_link', '')
+
+                self.log_signal.emit(f"  标题: {product_title[:40]}")
+                self.log_signal.emit(f"  小黄车链接: {cart_link[:50] if cart_link else '无'}")
+                self.log_signal.emit(f"  封面图片: {len(cover_paths)} 张")
+
+                video = ExportedVideo(
+                    video_id=product_info.get('product_id', '') or product.product_id,
+                    local_path=video_path,
+                    title=product_title[:30],
+                    description=product_title,
+                    cart_link=cart_link
+                )
+
+                # 上传
+                success = uploader.upload_video(
+                    video,
+                    cover_paths=cover_paths,
+                    on_log=lambda msg: self.log_signal.emit(f"  {msg}"),
+                    on_progress=lambda step, cur, total: self.progress_signal.emit(step, cur, total)
+                )
+
+                if success:
+                    self.log_signal.emit(f"  ✓ 上传成功")
+                    success_count += 1
+
+                    # 更新产品信息
+                    product_dir = self._get_product_dir(output_dir, product)
+                    json_path = product_dir / "product_info.json"
+                    if json_path.exists():
+                        product_info['uploaded'] = True
+                        product_info['upload_time'] = __import__('datetime').datetime.now().isoformat()
+                        with open(json_path, 'w', encoding='utf-8') as f:
+                            json.dump(product_info, f, ensure_ascii=False, indent=2)
+                else:
+                    self.log_signal.emit(f"  ✗ 上传失败")
+
+            except Exception as e:
+                import traceback
+                self.log_signal.emit(f"  ✗ 上传出错: {e}")
+                traceback.print_exc()
+
+        # 关闭上传器
+        self.log_signal.emit("\n关闭抖音浏览器...")
+        uploader.close()
+
+        # 汇总
+        self.log_signal.emit("\n" + "=" * 60)
+        self.log_signal.emit(f"抖音上传汇总: 成功 {success_count}/{total} 个")
+        self.log_signal.emit("=" * 60)
 
 
 class MainWindow(QMainWindow):

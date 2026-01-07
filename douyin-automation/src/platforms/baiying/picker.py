@@ -161,6 +161,83 @@ class BaiyingPicker:
             print(f"[BaiyingPicker] 解析产品失败: {e}")
             return None
 
+    def _get_cart_link_from_tab(
+        self,
+        tab,
+        on_log: Optional[Callable[[str], None]] = None
+    ) -> str:
+        """从产品详情页获取小黄车链接
+
+        点击「复制链接」按钮，从剪贴板读取链接
+
+        Args:
+            tab: ChromiumTab 对象
+            on_log: 日志回调
+
+        Returns:
+            小黄车链接，获取失败返回空字符串
+        """
+        def log(msg: str):
+            if on_log:
+                on_log(msg)
+            print(f"[BaiyingPicker] {msg}")
+
+        try:
+            # 查找「复制链接」按钮 - 使用文本内容定位更稳定
+            copy_link_selectors = [
+                'xpath://div[contains(text(), "复制链接")]/..',
+                'xpath://div[text()="复制链接"]/..',
+                'xpath://*[contains(@class, "copyLink")]',
+                'xpath://div[contains(@class, "rightPart")]//*[contains(text(), "复制链接")]/..',
+            ]
+
+            copy_btn = None
+            for sel in copy_link_selectors:
+                try:
+                    copy_btn = tab.ele(sel, timeout=2)
+                    if copy_btn:
+                        log(f"  找到「复制链接」按钮")
+                        break
+                except Exception:
+                    continue
+
+            if not copy_btn:
+                log("  未找到「复制链接」按钮")
+                return ""
+
+            # 点击按钮复制链接到剪贴板
+            copy_btn.click()
+            time.sleep(0.5)
+
+            # 从剪贴板读取链接 - 使用 JavaScript
+            try:
+                # 方法1: 使用 navigator.clipboard API (需要页面焦点)
+                cart_link = tab.run_js('''
+                    return navigator.clipboard.readText().then(text => text).catch(() => '');
+                ''')
+            except Exception:
+                cart_link = ""
+
+            # 如果 JavaScript 方法失败，尝试使用 pyperclip
+            if not cart_link:
+                try:
+                    import pyperclip
+                    cart_link = pyperclip.paste()
+                except Exception:
+                    pass
+
+            # 验证是否是有效链接
+            if cart_link and ('douyin' in cart_link or 'http' in cart_link):
+                log(f"  获取到小黄车链接: {cart_link[:50]}...")
+                return cart_link
+            else:
+                log(f"  剪贴板内容不是有效链接: {cart_link[:30] if cart_link else '空'}...")
+                return ""
+
+        except Exception as e:
+            log(f"  获取小黄车链接失败: {e}")
+            return ""
+
     def filter_product(self, product: Product) -> bool:
         """检查产品是否满足筛选条件
 
@@ -1219,6 +1296,12 @@ class BaiyingPicker:
                     if product:
                         log(f"  产品ID: {product.product_id}")
                         log(f"  图片数: {len(product.images)}, 视频: {'有' if product.video_url else '无'}")
+
+                        # 获取小黄车链接
+                        log("  获取小黄车链接...")
+                        cart_link = self._get_cart_link_from_tab(new_tab, on_log)
+                        if cart_link:
+                            product.cart_link = cart_link
 
                         # 下载素材
                         log("  开始下载素材...")

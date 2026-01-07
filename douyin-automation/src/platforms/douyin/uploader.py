@@ -139,8 +139,8 @@ class DouyinUploader:
                     "description": video.description or "测试描述"
                 },
                 "category": {
-                    "primary": "影视演艺",
-                    "description": "测试标签"
+                    "primary": "购物车",
+                    "description": video.cart_link or "测试小黄车链接"
                 },
                 "publish_settings": {
                     "visibility": self.config.get("douyin_upload.visibility", "private"),
@@ -583,6 +583,14 @@ class DouyinUploader:
                 log(f"分类: {category_name}")
             else:
                 log(f"分类未选择成功: {category_name}")
+
+        # 添加购物车链接
+        cart_link = publish_job["category"].get("description", "")
+        if cart_link and cart_link != "测试小黄车链接":
+            if self._add_cart_link(cart_link, log):
+                log(f"购物车链接已添加: {cart_link[:30]}...")
+            else:
+                log("购物车链接添加失败")
 
         log("发布设置...")
         if not self._apply_publish_settings(publish_job["publish_settings"], log):
@@ -1073,7 +1081,7 @@ class DouyinUploader:
                 continue
         return None
 
-    def _wait_for_upload_complete(self, timeout: int = 600) -> bool:
+    def _wait_for_upload_complete(self, timeout: int = 6000) -> bool:
         """等待上传完成
 
         Args:
@@ -1389,6 +1397,130 @@ class DouyinUploader:
         log("[category] FAIL")
         self._dump_dom_context(log, "category_select_failed")
         return False
+
+    def _add_cart_link(self, cart_link: str, log: Callable[[str], None]) -> bool:
+        """添加购物车链接（小黄车）
+
+        Args:
+            cart_link: 购物车链接URL
+            log: 日志回调
+
+        Returns:
+            是否添加成功
+        """
+        if not cart_link:
+            return False
+
+        # 查找添加商品/购物车的入口按钮
+        add_product_selectors = [
+            'xpath://div[contains(text(),"添加商品")]',
+            'xpath://span[contains(text(),"添加商品")]',
+            'xpath://button[contains(.,"添加商品")]',
+            'xpath://div[contains(text(),"添加小黄车")]',
+            'xpath://span[contains(text(),"添加小黄车")]',
+            'xpath://div[contains(@class,"add-product")]',
+            'xpath://div[contains(@class,"cart")]//div[contains(text(),"添加")]',
+        ]
+
+        clicked = False
+        for selector in add_product_selectors:
+            try:
+                ele = self.page.ele(selector, timeout=2)
+                if ele and self._is_visible(ele):
+                    ele.click()
+                    clicked = True
+                    log(f"[cart] clicked_add_product=Y selector={selector}")
+                    break
+            except Exception:
+                pass
+
+        if not clicked:
+            log("[cart] add_product_button_not_found")
+            # 尝试查找链接输入框直接输入
+            return self._input_cart_link_directly(cart_link, log)
+
+        time.sleep(1)
+
+        # 等待弹窗或输入区域出现
+        link_input_selectors = [
+            'css:input[placeholder*="商品链接"]',
+            'css:input[placeholder*="链接"]',
+            'css:input[placeholder*="商品"]',
+            'css:input[type="text"][class*="input"]',
+            'xpath://div[contains(@class,"modal")]//input[@type="text"]',
+            'xpath://div[@role="dialog"]//input[@type="text"]',
+        ]
+
+        input_ele = None
+        for selector in link_input_selectors:
+            try:
+                input_ele = self.page.ele(selector, timeout=3)
+                if input_ele and self._is_visible(input_ele):
+                    log(f"[cart] link_input_found=Y selector={selector}")
+                    break
+            except Exception:
+                input_ele = None
+
+        if not input_ele:
+            log("[cart] link_input_not_found")
+            return False
+
+        # 输入链接
+        try:
+            input_ele.clear()
+            input_ele.input(cart_link)
+            time.sleep(0.5)
+            log(f"[cart] link_input=Y")
+        except Exception as e:
+            log(f"[cart] link_input_failed: {e}")
+            return False
+
+        # 点击确认/添加按钮
+        confirm_selectors = [
+            'xpath://button[contains(.,"确认")]',
+            'xpath://button[contains(.,"添加")]',
+            'xpath://button[contains(.,"确定")]',
+            'xpath://div[@role="dialog"]//button[contains(@class,"primary")]',
+            'xpath://div[contains(@class,"modal")]//button[contains(@class,"primary")]',
+        ]
+
+        for selector in confirm_selectors:
+            try:
+                btn = self.page.ele(selector, timeout=2)
+                if btn and self._is_visible(btn) and not self._is_element_disabled(btn):
+                    btn.click()
+                    log(f"[cart] confirm_clicked=Y")
+                    time.sleep(1)
+                    return True
+            except Exception:
+                pass
+
+        log("[cart] confirm_button_not_found")
+        return True  # 链接已输入，即使没点确认也返回True
+
+    def _input_cart_link_directly(self, cart_link: str, log: Callable[[str], None]) -> bool:
+        """直接在页面上查找并输入购物车链接"""
+        direct_selectors = [
+            'css:input[placeholder*="商品链接"]',
+            'css:input[placeholder*="小黄车"]',
+            'css:input[placeholder*="购物车"]',
+            'xpath://div[contains(text(),"商品链接") or contains(text(),"小黄车")]//following::input[1]',
+        ]
+
+        for selector in direct_selectors:
+            try:
+                ele = self.page.ele(selector, timeout=2)
+                if ele and self._is_visible(ele):
+                    ele.clear()
+                    ele.input(cart_link)
+                    log(f"[cart] direct_input=Y selector={selector}")
+                    return True
+            except Exception:
+                pass
+
+        log("[cart] direct_input_failed")
+        return False
+
     def _get_page_html(self) -> str:
         """获取HTML源码"""
         for attr in ("html", "source", "page_source"):
@@ -1776,9 +1908,9 @@ class DouyinUploader:
         except Exception:
             return False
     def _set_schedule_time(self, schedule_date: str, schedule_time: str, offset_minutes: int, log: Callable[[str], None]) -> None:
-        """设置定时发布（仅写入 input 值）"""
+        """设置定时发布（通过UI交互选择日期时间）"""
 
-        # 1) 选中“定时发布”
+        # 1) 选中"定时发布"
         selectors = [
             'xpath://label[contains(text(),"定时发布")]',
             'xpath://span[contains(text(),"定时发布")]',
@@ -1791,6 +1923,7 @@ class DouyinUploader:
                 if ele:
                     ele.click()
                     clicked = True
+                    log("[schedule] clicked_schedule_option=Y")
                     break
             except Exception:
                 pass
@@ -1800,7 +1933,9 @@ class DouyinUploader:
             self._set_immediate_publish(log)
             return
 
-        # 2) 计算目标时间（字符串）
+        time.sleep(0.5)
+
+        # 2) 计算目标时间
         target_dt = None
         if schedule_date and schedule_time:
             try:
@@ -1811,12 +1946,143 @@ class DouyinUploader:
             target_dt = datetime.now() + timedelta(minutes=offset_minutes)
 
         target_date = target_dt.strftime("%Y-%m-%d")
-        target_time = target_dt.strftime("%H:%M")
-        target_value = f"{target_date} {target_time}"
-        # 3) 直接写入 input
-        ok_set = self._set_schedule_input_value(target_value)
-        log(f'schedule_direct_set={"Y" if ok_set else "N"} target="{target_value}"')
-        return
+        target_time_str = target_dt.strftime("%H:%M")
+        target_value = f"{target_date} {target_time_str}"
+        log(f"[schedule] target={target_value}")
+
+        # 3) 打开日期时间选择器
+        if not self._open_schedule_picker(log):
+            # 尝试直接写入
+            ok_set = self._set_schedule_input_value(target_value)
+            log(f'[schedule] fallback_direct_set={"Y" if ok_set else "N"}')
+            return
+
+        time.sleep(0.5)
+
+        # 4) 获取日期选择器根节点
+        picker_root = self._get_active_datepicker_root()
+        if not picker_root:
+            log("[schedule] datepicker_root_not_found")
+            ok_set = self._set_schedule_input_value(target_value)
+            log(f'[schedule] fallback_direct_set={"Y" if ok_set else "N"}')
+            return
+
+        # 5) 选择日期
+        ok_date = self._select_date_in_picker(picker_root, target_dt, log)
+        log(f"[schedule] date_select={'Y' if ok_date else 'N'}")
+
+        # 6) 选择时间
+        ok_time = self._select_time_in_timepicker(picker_root, target_time_str, log)
+        log(f"[schedule] time_select={'Y' if ok_time else 'N'}")
+
+        # 7) 点击确认按钮关闭选择器
+        self._confirm_datepicker(picker_root, log)
+
+        time.sleep(0.3)
+
+        # 8) 验证结果
+        final_value = self._read_schedule_input_value()
+        log(f'[schedule] final_value="{final_value}" target="{target_value}"')
+
+    def _select_date_in_picker(self, picker_root: object, target_dt: datetime, log: Callable[[str], None]) -> bool:
+        """在日期选择器中选择指定日期"""
+        day = target_dt.day
+        day_str = str(day)
+
+        # 尝试直接点击日期
+        day_selectors = [
+            f'xpath:.//div[contains(@class,"semi-datepicker-day") and normalize-space(text())="{day_str}"]',
+            f'xpath:.//td[contains(@class,"day") and normalize-space(text())="{day_str}"]',
+            f'xpath:.//*[contains(@class,"day") and normalize-space(text())="{day_str}"]',
+        ]
+
+        for selector in day_selectors:
+            try:
+                # 获取所有匹配的日期元素
+                day_eles = picker_root.eles(selector, timeout=1) or []
+                for day_ele in day_eles:
+                    # 检查是否可见且不是禁用状态
+                    if not self._is_visible(day_ele):
+                        continue
+                    try:
+                        cls = day_ele.attr("class") or ""
+                    except Exception:
+                        cls = ""
+                    if "disabled" in cls or "prev-month" in cls or "next-month" in cls:
+                        continue
+                    try:
+                        day_ele.click()
+                        log(f"[schedule] day_clicked=Y day={day_str}")
+                        return True
+                    except Exception:
+                        continue
+            except Exception:
+                pass
+
+        # JS 备用方案
+        try:
+            js = (
+                "const root = arguments[0];"
+                "const day = arguments[1];"
+                "const days = Array.from(root.querySelectorAll('[class*=\"datepicker-day\"], td[class*=\"day\"]'));"
+                "for (const el of days) {"
+                "  const text = (el.innerText || '').trim();"
+                "  const cls = el.className || '';"
+                "  if (text === day && !cls.includes('disabled') && !cls.includes('prev-month') && !cls.includes('next-month')) {"
+                "    el.click();"
+                "    return true;"
+                "  }"
+                "}"
+                "return false;"
+            )
+            ok = bool(self.page.run_js(js, picker_root, day_str))
+            if ok:
+                log(f"[schedule] day_clicked_js=Y day={day_str}")
+                return True
+        except Exception:
+            pass
+
+        log(f"[schedule] day_click_failed day={day_str}")
+        return False
+
+    def _confirm_datepicker(self, picker_root: object, log: Callable[[str], None]) -> bool:
+        """点击日期选择器的确认按钮"""
+        confirm_selectors = [
+            'xpath:.//button[contains(.,"确定")]',
+            'xpath:.//button[contains(.,"确认")]',
+            'xpath:.//button[contains(@class,"primary")]',
+            'css:button.semi-button-primary',
+        ]
+
+        for selector in confirm_selectors:
+            try:
+                btn = picker_root.ele(selector, timeout=1)
+                if btn and self._is_visible(btn):
+                    btn.click()
+                    log("[schedule] datepicker_confirmed=Y")
+                    return True
+            except Exception:
+                pass
+
+        # 尝试页面级别的确认按钮
+        for selector in confirm_selectors:
+            try:
+                btn = self.page.ele(selector, timeout=1)
+                if btn and self._is_visible(btn):
+                    # 检查是否在日期选择器附近
+                    btn.click()
+                    log("[schedule] datepicker_confirmed_page=Y")
+                    return True
+            except Exception:
+                pass
+
+        # 点击页面空白处关闭
+        try:
+            self.page.run_js("document.body.click();")
+        except Exception:
+            pass
+
+        return False
     def _set_immediate_publish(self, log: Callable[[str], None]) -> None:
         """设置立即发布"""
         selectors = [

@@ -521,7 +521,7 @@ class Pipeline:
 
             cover_paths = product.local_images if product else []
             if not cover_paths:
-                asset_dir = Path(r"C:\Users\21346\OneDrive\桌面\jianying_test")
+                asset_dir = Path(r"C:\Users\EGOIST\Downloads\douyin-automation\materials\3757306711615078574_千丝黄油云朵华夫饼蛋糕整箱早餐优选美味面")
                 if asset_dir.exists():
                     image_exts = {'.jpg', '.jpeg', '.png', '.webp'}
                     candidates = [

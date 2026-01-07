@@ -140,8 +140,8 @@ class SettingsDialog(QDialog):
         output_row.addWidget(btn_browse_output)
         douyin_layout.addRow("视频保存目录:", output_row)
         self.scroll_times = QSpinBox()
-        self.scroll_times.setRange(1, 20)
-        self.scroll_times.setToolTip("搜索页面滚动次数，滚动越多加载的视频越多")
+        self.scroll_times.setRange(0, 20)
+        self.scroll_times.setToolTip("搜索页面滚动次数，0表示不滚动，滚动越多加载的视频越多")
         douyin_layout.addRow("滚动次数:", self.scroll_times)
 
         layout.addWidget(douyin_group)
