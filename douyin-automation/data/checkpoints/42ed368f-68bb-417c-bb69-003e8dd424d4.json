@@ -1,0 +1,108 @@
+{
+  "project": {
+    "project_id": "42ed368f-68bb-417c-bb69-003e8dd424d4",
+    "name": "asdasd",
+    "account_id": "account_1",
+    "status": "failed",
+    "current_step": "搜索产品",
+    "progress": 5,
+    "product": null,
+    "search_results_count": 0,
+    "filtered_results_count": 0,
+    "downloaded_videos_count": 0,
+    "videos": [],
+    "jianying_draft_path": "",
+    "jianying_draft_name": "",
+    "exported_video": null,
+    "logs": [
+      {
+        "timestamp": "2026-01-06T19:52:15.576876",
+        "level": "info",
+        "message": "开始项目: asdasd",
+        "step": ""
+      },
+      {
+        "timestamp": "2026-01-06T19:52:15.577068",
+        "level": "info",
+        "message": "账户: account_1",
+        "step": ""
+      },
+      {
+        "timestamp": "2026-01-06T19:52:15.577496",
+        "level": "info",
+        "message": "访问产品页面: https://buyin.jinritemai.com/dashboard/merch-picking-library/merch-promoting?commodity_id=3717049260504668380&commodity_location=4&id=3717049260504668380&pick_first_source=%E7%99%BE%E5%BA%94&pick_second_source=%E9%80%89%E5%93%81%E5%B9%BF%E5%9C%BA&pick_third_source=category_recommend&pick_source_id=&product_id=3716254497090175356&shop_id=195587553&search_id=989ee646ccad47cfd93dabb165e1e21f3b30e9ab335331cd44d99e683294b9b4be78232aed017c4e768748195d14224575c9fd32726154b2a9c19b0966a01d28c2775674160885394dd1b98d014bfbd7&log_pb=20260106163849D56A5A4F9318BB5410D1&session_id=2240ef2d8a855155c5a83bb0482ffccf197cd99dd99017347d914442b8d79bf1cf349523c445ef57b9976fb4273752bc7516f9802d7d33b5f9992d6d6ba88ec24c28f36720e3fcfd9995311a181f4d17&recommend_reason_type=201&recommend_reason_text=%E6%8A%B1%E6%9E%95%E9%9D%A0%E5%9E%AB%E7%88%86%E6%AC%BE%E6%A6%9C%C2%B7%E7%AC%AC1%E5%90%8D&recall_source=i2i_bg_recalls%3A99%3A-22%2Cucf_u2u_bg_recalls%3A88%3A-999%2Cshopid_recalls%3A77%3A-22%2CFIRST%23viking_pick_recalls%3A24%3A-1.16288+%7C+i2i_new_3722215900900884688%2411574%3A1765612958%2Ci2i_new_3704041648196551087%2413392%3A1766988609%2Cu2g2i_firsttag_%E7%94%9F%E6%B4%BB%E5%AE%B6%E5%B1%85&is_outside_log=1&only_query_params=1&activity_id=&universal_append=1&pre_universal_unit_params=%257B%2522recall_source%2522%253A%2522i2i_bg_recalls%253A99%253A-22%252Cucf_u2u_bg_recalls%253A88%253A-999%252Cshopid_recalls%253A77%253A-22%252CFIRST%2523viking_pick_recalls%253A24%253A-1.16288%2520%257C%2520i2i_new_3722215900900884688%252411574%253A1765612958%252Ci2i_new_3704041648196551087%252413392%253A1766988609%252Cu2g2i_firsttag_%25E7%2594%259F%25E6%25B4%25BB%25E5%25AE%25B6%25E5%25B1%2585%2522%252C%2522product_id%2522%253A%25223716254497090175356%2522%252C%2522commodity_id%2522%253A%25223717049260504668380%2522%252C%2522commodity_location%2522%253A4%252C%2522search_id%2522%253A%2522989ee646ccad47cfd93dabb165e1e21f3b30e9ab335331cd44d99e683294b9b4be78232aed017c4e768748195d14224575c9fd32726154b2a9c19b0966a01d28c2775674160885394dd1b98d014bfbd7%2522%252C%2522log_pb%2522%253A%252220260106163849D56A5A4F9318BB5410D1%2522%257D&decision_enter_from=pc.selection_square.recommend_main&btm_ppre=a10091.b089178.c809509.d0&btm_pre=a10091.b24215.c644093.d595042_i3&btm_show_id=1640aa70-e8f8-4058-9a2b-e832c5074f3e&pre_universal_page_params_id=71727477-a2c9-475b-a96b-caba971beed8&universal_page_params_id=4d185fcd-d1a9-481e-9f14-f220626894b8",
+        "step": "搜索产品"
+      },
+      {
+        "timestamp": "2026-01-06T19:52:18.217375",
+        "level": "info",
+        "message": "请在浏览器中登录百应...",
+        "step": "搜索产品"
+      },
+      {
+        "timestamp": "2026-01-06T19:52:24.096569",
+        "level": "info",
+        "message": "正在访问产品页面: https://buyin.jinritemai.com/dashboard/merch-picking-library/merch-promoting?commodity_id=3717049260504668380&commodity_location=4&id=3717049260504668380&pick_first_source=%E7%99%BE%E5%BA%94&pick_second_source=%E9%80%89%E5%93%81%E5%B9%BF%E5%9C%BA&pick_third_source=category_recommend&pick_source_id=&product_id=3716254497090175356&shop_id=195587553&search_id=989ee646ccad47cfd93dabb165e1e21f3b30e9ab335331cd44d99e683294b9b4be78232aed017c4e768748195d14224575c9fd32726154b2a9c19b0966a01d28c2775674160885394dd1b98d014bfbd7&log_pb=20260106163849D56A5A4F9318BB5410D1&session_id=2240ef2d8a855155c5a83bb0482ffccf197cd99dd99017347d914442b8d79bf1cf349523c445ef57b9976fb4273752bc7516f9802d7d33b5f9992d6d6ba88ec24c28f36720e3fcfd9995311a181f4d17&recommend_reason_type=201&recommend_reason_text=%E6%8A%B1%E6%9E%95%E9%9D%A0%E5%9E%AB%E7%88%86%E6%AC%BE%E6%A6%9C%C2%B7%E7%AC%AC1%E5%90%8D&recall_source=i2i_bg_recalls%3A99%3A-22%2Cucf_u2u_bg_recalls%3A88%3A-999%2Cshopid_recalls%3A77%3A-22%2CFIRST%23viking_pick_recalls%3A24%3A-1.16288+%7C+i2i_new_3722215900900884688%2411574%3A1765612958%2Ci2i_new_3704041648196551087%2413392%3A1766988609%2Cu2g2i_firsttag_%E7%94%9F%E6%B4%BB%E5%AE%B6%E5%B1%85&is_outside_log=1&only_query_params=1&activity_id=&universal_append=1&pre_universal_unit_params=%257B%2522recall_source%2522%253A%2522i2i_bg_recalls%253A99%253A-22%252Cucf_u2u_bg_recalls%253A88%253A-999%252Cshopid_recalls%253A77%253A-22%252CFIRST%2523viking_pick_recalls%253A24%253A-1.16288%2520%257C%2520i2i_new_3722215900900884688%252411574%253A1765612958%252Ci2i_new_3704041648196551087%252413392%253A1766988609%252Cu2g2i_firsttag_%25E7%2594%259F%25E6%25B4%25BB%25E5%25AE%25B6%25E5%25B1%2585%2522%252C%2522product_id%2522%253A%25223716254497090175356%2522%252C%2522commodity_id%2522%253A%25223717049260504668380%2522%252C%2522commodity_location%2522%253A4%252C%2522search_id%2522%253A%2522989ee646ccad47cfd93dabb165e1e21f3b30e9ab335331cd44d99e683294b9b4be78232aed017c4e768748195d14224575c9fd32726154b2a9c19b0966a01d28c2775674160885394dd1b98d014bfbd7%2522%252C%2522log_pb%2522%253A%252220260106163849D56A5A4F9318BB5410D1%2522%257D&decision_enter_from=pc.selection_square.recommend_main&btm_ppre=a10091.b089178.c809509.d0&btm_pre=a10091.b24215.c644093.d595042_i3&btm_show_id=1640aa70-e8f8-4058-9a2b-e832c5074f3e&pre_universal_page_params_id=71727477-a2c9-475b-a96b-caba971beed8&universal_page_params_id=4d185fcd-d1a9-481e-9f14-f220626894b8",
+        "step": "搜索产品"
+      },
+      {
+        "timestamp": "2026-01-06T19:52:32.929288",
+        "level": "info",
+        "message": "正在解析产品信息...",
+        "step": "搜索产品"
+      },
+      {
+        "timestamp": "2026-01-06T19:52:44.709813",
+        "level": "info",
+        "message": "产品: 汽车抱枕被二合一车内靠垫被车载枕头抱枕睡觉多功能折叠空调被子",
+        "step": "搜索产品"
+      },
+      {
+        "timestamp": "2026-01-06T19:52:44.710031",
+        "level": "info",
+        "message": "产品ID: 3716254497090175356",
+        "step": "搜索产品"
+      },
+      {
+        "timestamp": "2026-01-06T19:52:44.710244",
+        "level": "info",
+        "message": "价格: ¥39.9, 佣金: ¥15.96 (40.0%)",
+        "step": "搜索产品"
+      },
+      {
+        "timestamp": "2026-01-06T19:52:44.710428",
+        "level": "info",
+        "message": "已售: 200000, 好评率: 91.5%",
+        "step": "搜索产品"
+      },
+      {
+        "timestamp": "2026-01-06T19:52:44.710645",
+        "level": "info",
+        "message": "产品不满足筛选条件",
+        "step": "搜索产品"
+      },
+      {
+        "timestamp": "2026-01-06T19:52:45.743933",
+        "level": "info",
+        "message": "项目失败: 获取产品信息失败",
+        "step": "搜索产品"
+      },
+      {
+        "timestamp": "2026-01-06T19:52:45.743980",
+        "level": "error",
+        "message": "项目失败: 获取产品信息失败",
+        "step": "搜索产品"
+      }
+    ],
+    "created_at": "2026-01-06T19:52:15.576591",
+    "updated_at": "2026-01-06T19:52:45.743976",
+    "completed_at": "",
+    "error_message": "获取产品信息失败",
+    "retry_count": 0,
+    "max_retries": 3,
+    "project_dir": "asdasd"
+  },
+  "saved_at": "2026-01-06T19:52:45.744103",
+  "status": "failed",
+  "progress": 5
+}

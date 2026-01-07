@@ -515,14 +515,21 @@ class ProductParser:
         Returns:
             图片URL列表
         """
+        import time
         images = []
 
         try:
-            # 从 slick-track 获取 (轮播图) - 对应 baiying.js
-            slick_track = self.page.ele(self.SELECTORS['slick_track'], timeout=2)
+            print(f"[ProductParser] 当前页面URL: {self.page.url}")
+
+            # 等待页面加载完成
+            time.sleep(2)
+
+            # 方法1: 从 slick-track 获取 (轮播图) - 对应 baiying.js
+            slick_track = self.page.ele(self.SELECTORS['slick_track'], timeout=5)
             if slick_track:
+                print(f"[ProductParser] 找到 slick-track 元素")
                 img_elements = slick_track.eles('tag:img')
-                print(f"获取到图片标签数: {len(img_elements)}")
+                print(f"[ProductParser] slick-track 中获取到图片标签数: {len(img_elements)}")
 
                 # 检查主内容区是否包含视频 - 对应 baiying.js 逻辑
                 has_video = False
@@ -530,13 +537,14 @@ class ProductParser:
                 if main_content:
                     video_ele = main_content.ele('tag:video', timeout=0.5)
                     has_video = video_ele is not None
+                    print(f"[ProductParser] 主内容区域包含视频: {has_video}")
 
                 has_skipped_first = False
 
                 for i, img in enumerate(img_elements):
                     # 如果有视频，跳过第一张图片（视频封面）
                     if has_video and i == 0 and not has_skipped_first:
-                        print('跳过第一个图片，因为主内容区域包含视频元素')
+                        print('[ProductParser] 跳过第一个图片，因为主内容区域包含视频元素')
                         has_skipped_first = True
                         continue
 
@@ -550,30 +558,95 @@ class ProductParser:
                             from urllib.parse import urljoin
                             src = urljoin(self.page.url, src)
                         images.append(src)
+                        print(f"[ProductParser] 图片 {i}: {src[:80]}...")
                     else:
-                        print('未获取到img_src属性')
+                        print(f'[ProductParser] 图片 {i}: 未获取到src属性')
             else:
-                print("未获取到slick-track元素")
+                print("[ProductParser] 未获取到 slick-track 元素")
 
-            # 如果 slick-track 没有图片，尝试其他选择器
+            # 方法2: 如果 slick-track 没有图片，尝试其他选择器
             if not images:
-                selectors = [
-                    '.product-images img',
-                    '[class*="productImage"] img',
-                    '.gallery img',
-                    '.swiper-slide img',
+                print("[ProductParser] 尝试备用选择器...")
+
+                # 尝试查找所有可能的图片容器
+                backup_selectors = [
+                    # 百应可能的图片容器
+                    'css:div[class*="slick"] img',
+                    'css:div[class*="carousel"] img',
+                    'css:div[class*="gallery"] img',
+                    'css:div[class*="swiper"] img',
+                    'css:div[class*="imgWrapper"] img',
+                    'css:div[class*="imageWrapper"] img',
+                    'css:div[class*="mainImage"] img',
+                    'css:div[class*="productImage"] img',
+                    # 更通用的选择器
+                    'css:img[class*="product"]',
+                    'css:img[class*="main"]',
                 ]
-                for selector in selectors:
-                    img_elements = self.page.eles(selector, timeout=1)
-                    for img in img_elements:
-                        src = img.attr('src') or img.attr('data-src')
-                        if src and self._is_valid_image_url(src):
-                            images.append(self._clean_image_url(src))
-                    if images:
-                        break
+
+                for selector in backup_selectors:
+                    try:
+                        img_elements = self.page.eles(selector, timeout=1)
+                        if img_elements:
+                            print(f"[ProductParser] 选择器 '{selector}' 找到 {len(img_elements)} 个图片")
+                            for img in img_elements:
+                                src = img.attr('src') or img.attr('data-src')
+                                if src and self._is_valid_image_url(src):
+                                    clean_src = self._clean_image_url(src)
+                                    if clean_src not in images:
+                                        images.append(clean_src)
+                            if images:
+                                break
+                    except Exception as e:
+                        print(f"[ProductParser] 选择器 '{selector}' 失败: {e}")
+                        continue
+
+            # 方法3: 使用 JavaScript 获取所有图片
+            if not images:
+                print("[ProductParser] 尝试使用 JavaScript 获取图片...")
+                try:
+                    # 执行 JavaScript 获取页面上的图片
+                    js_code = '''
+                        const images = [];
+                        // 尝试从 slick-track 获取
+                        const slickTrack = document.querySelector('div.slick-track');
+                        if (slickTrack) {
+                            slickTrack.querySelectorAll('img').forEach(img => {
+                                if (img.src && img.src.startsWith('http')) {
+                                    images.push(img.src);
+                                }
+                            });
+                        }
+                        // 如果没有，尝试获取所有大图
+                        if (images.length === 0) {
+                            document.querySelectorAll('img').forEach(img => {
+                                if (img.src && img.src.startsWith('http') &&
+                                    img.naturalWidth > 100 && img.naturalHeight > 100 &&
+                                    !img.src.includes('icon') && !img.src.includes('logo') &&
+                                    !img.src.includes('avatar')) {
+                                    images.push(img.src);
+                                }
+                            });
+                        }
+                        return images;
+                    '''
+                    js_result = self.page.run_js(js_code)
+                    if js_result:
+                        print(f"[ProductParser] JavaScript 获取到 {len(js_result)} 个图片")
+                        for src in js_result:
+                            if src and self._is_valid_image_url(src):
+                                clean_src = self._clean_image_url(src)
+                                if clean_src not in images:
+                                    images.append(clean_src)
+                except Exception as e:
+                    print(f"[ProductParser] JavaScript 获取图片失败: {e}")
+
+            print(f"[ProductParser] 最终获取到 {len(images)} 个图片")
 
         except Exception as e:
-            print(f"获取产品图片失败: {e}")
+            print(f"[ProductParser] 获取产品图片失败: {e}")
+            import traceback
+            traceback.print_exc()
 
         # 去重
         return list(dict.fromkeys(images))

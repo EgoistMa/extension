@@ -24,7 +24,7 @@ class BrowserManager:
 
     # 平台对应的起始URL
     PLATFORM_URLS = {
-        'baiying': 'https://buyin.jinritemai.com/',
+        'baiying': 'https://buyin.jinritemai.com/mpa/account/login?log_out=1&type=24',
         'douyin': 'https://www.douyin.com/',
         'douyin_creator': 'https://creator.douyin.com/',
     }

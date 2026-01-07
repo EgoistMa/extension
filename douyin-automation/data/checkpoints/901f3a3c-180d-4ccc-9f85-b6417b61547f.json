@@ -1,0 +1,108 @@
+{
+  "project": {
+    "project_id": "901f3a3c-180d-4ccc-9f85-b6417b61547f",
+    "name": "花生油",
+    "account_id": "account_1",
+    "status": "failed",
+    "current_step": "搜索产品",
+    "progress": 5,
+    "product": null,
+    "search_results_count": 0,
+    "filtered_results_count": 0,
+    "downloaded_videos_count": 0,
+    "videos": [],
+    "jianying_draft_path": "",
+    "jianying_draft_name": "",
+    "exported_video": null,
+    "logs": [
+      {
+        "timestamp": "2026-01-06T16:17:52.367593",
+        "level": "info",
+        "message": "开始项目: 花生油",
+        "step": ""
+      },
+      {
+        "timestamp": "2026-01-06T16:17:52.367709",
+        "level": "info",
+        "message": "账户: account_1",
+        "step": ""
+      },
+      {
+        "timestamp": "2026-01-06T16:17:52.368047",
+        "level": "info",
+        "message": "访问产品页面: https://buyin.jinritemai.com/dashboard/merch-picking-library/merch-promoting?commodity_id=3784718678797451620&commodity_location=2&id=3784718678797451620&pick_first_source=%E7%99%BE%E5%BA%94&pick_second_source=%E9%80%89%E5%93%81%E5%B9%BF%E5%9C%BA&pick_third_source=category_recommend&pick_source_id=&product_id=3784718455576592940&shop_id=202164920&search_id=e9a169ca050670a17ea1f2218a2bf2a13afa34186dc82bf0098938ca9493f98b438b1f8af3474dc67b01355bdf7bd81913a9d511b4f913f67bebd788ba5293734728bbe41d1cff6b1217a11785d76595&log_pb=2026010613162883B629C0C7197527439E&session_id=2240ef2d8a855155c5a83bb0482ffccf197cd99dd99017347d914442b8d79bf1cf349523c445ef57b9976fb4273752bcab6462044d967fcfb2c4080778f34b10c0f42260c260441b698f4e450ffbf1b2&recommend_reason_type=&recommend_reason_text=&recall_source=viking_pick_efficient_recalls%3A347%3A-1.90866%2CFIRST%23lowest_price_viking_pick_recalls%3A98%3A-1.90866+%7C+&is_outside_log=1&only_query_params=1&activity_id=&universal_append=1&pre_universal_unit_params=%257B%2522recall_source%2522%253A%2522viking_pick_efficient_recalls%253A347%253A-1.90866%252CFIRST%2523lowest_price_viking_pick_recalls%253A98%253A-1.90866%2520%257C%2520%2522%252C%2522product_id%2522%253A%25223784718455576592940%2522%252C%2522commodity_id%2522%253A%25223784718678797451620%2522%252C%2522commodity_location%2522%253A2%252C%2522search_id%2522%253A%2522e9a169ca050670a17ea1f2218a2bf2a13afa34186dc82bf0098938ca9493f98b438b1f8af3474dc67b01355bdf7bd81913a9d511b4f913f67bebd788ba5293734728bbe41d1cff6b1217a11785d76595%2522%252C%2522log_pb%2522%253A%25222026010613162883B629C0C7197527439E%2522%257D&decision_enter_from=pc.selection_square.recommend_main&btm_ppre=a10091.b089178.c809509.d0&btm_pre=a10091.b24215.c644093.d595042_i1&btm_show_id=39a04104-ed38-4d5b-ba89-ba0daa93fc59&pre_universal_page_params_id=735f7d87-d5c9-4fbf-a9ca-3c48c17e74e1&universal_page_params_id=240233d4-642b-4971-8758-111f5db77b5a",
+        "step": "搜索产品"
+      },
+      {
+        "timestamp": "2026-01-06T16:17:54.204525",
+        "level": "info",
+        "message": "请在浏览器中登录百应...",
+        "step": "搜索产品"
+      },
+      {
+        "timestamp": "2026-01-06T16:18:01.950149",
+        "level": "info",
+        "message": "正在访问产品页面: https://buyin.jinritemai.com/dashboard/merch-picking-library/merch-promoting?commodity_id=3784718678797451620&commodity_location=2&id=3784718678797451620&pick_first_source=%E7%99%BE%E5%BA%94&pick_second_source=%E9%80%89%E5%93%81%E5%B9%BF%E5%9C%BA&pick_third_source=category_recommend&pick_source_id=&product_id=3784718455576592940&shop_id=202164920&search_id=e9a169ca050670a17ea1f2218a2bf2a13afa34186dc82bf0098938ca9493f98b438b1f8af3474dc67b01355bdf7bd81913a9d511b4f913f67bebd788ba5293734728bbe41d1cff6b1217a11785d76595&log_pb=2026010613162883B629C0C7197527439E&session_id=2240ef2d8a855155c5a83bb0482ffccf197cd99dd99017347d914442b8d79bf1cf349523c445ef57b9976fb4273752bcab6462044d967fcfb2c4080778f34b10c0f42260c260441b698f4e450ffbf1b2&recommend_reason_type=&recommend_reason_text=&recall_source=viking_pick_efficient_recalls%3A347%3A-1.90866%2CFIRST%23lowest_price_viking_pick_recalls%3A98%3A-1.90866+%7C+&is_outside_log=1&only_query_params=1&activity_id=&universal_append=1&pre_universal_unit_params=%257B%2522recall_source%2522%253A%2522viking_pick_efficient_recalls%253A347%253A-1.90866%252CFIRST%2523lowest_price_viking_pick_recalls%253A98%253A-1.90866%2520%257C%2520%2522%252C%2522product_id%2522%253A%25223784718455576592940%2522%252C%2522commodity_id%2522%253A%25223784718678797451620%2522%252C%2522commodity_location%2522%253A2%252C%2522search_id%2522%253A%2522e9a169ca050670a17ea1f2218a2bf2a13afa34186dc82bf0098938ca9493f98b438b1f8af3474dc67b01355bdf7bd81913a9d511b4f913f67bebd788ba5293734728bbe41d1cff6b1217a11785d76595%2522%252C%2522log_pb%2522%253A%25222026010613162883B629C0C7197527439E%2522%257D&decision_enter_from=pc.selection_square.recommend_main&btm_ppre=a10091.b089178.c809509.d0&btm_pre=a10091.b24215.c644093.d595042_i1&btm_show_id=39a04104-ed38-4d5b-ba89-ba0daa93fc59&pre_universal_page_params_id=735f7d87-d5c9-4fbf-a9ca-3c48c17e74e1&universal_page_params_id=240233d4-642b-4971-8758-111f5db77b5a",
+        "step": "搜索产品"
+      },
+      {
+        "timestamp": "2026-01-06T16:18:06.342415",
+        "level": "info",
+        "message": "正在解析产品信息...",
+        "step": "搜索产品"
+      },
+      {
+        "timestamp": "2026-01-06T16:18:22.008195",
+        "level": "info",
+        "message": "产品: ",
+        "step": "搜索产品"
+      },
+      {
+        "timestamp": "2026-01-06T16:18:22.008563",
+        "level": "info",
+        "message": "产品ID: 3784718455576592940",
+        "step": "搜索产品"
+      },
+      {
+        "timestamp": "2026-01-06T16:18:22.008838",
+        "level": "info",
+        "message": "价格: ¥69.9, 佣金: ¥13.98 (20.0%)",
+        "step": "搜索产品"
+      },
+      {
+        "timestamp": "2026-01-06T16:18:22.009086",
+        "level": "info",
+        "message": "已售: 10000, 好评率: 90.9%",
+        "step": "搜索产品"
+      },
+      {
+        "timestamp": "2026-01-06T16:18:22.009288",
+        "level": "info",
+        "message": "产品不满足筛选条件",
+        "step": "搜索产品"
+      },
+      {
+        "timestamp": "2026-01-06T16:18:23.043123",
+        "level": "info",
+        "message": "项目失败: 获取产品信息失败",
+        "step": "搜索产品"
+      },
+      {
+        "timestamp": "2026-01-06T16:18:23.043177",
+        "level": "error",
+        "message": "项目失败: 获取产品信息失败",
+        "step": "搜索产品"
+      }
+    ],
+    "created_at": "2026-01-06T16:17:52.367401",
+    "updated_at": "2026-01-06T16:18:23.043173",
+    "completed_at": "",
+    "error_message": "获取产品信息失败",
+    "retry_count": 0,
+    "max_retries": 3,
+    "project_dir": "花生油"
+  },
+  "saved_at": "2026-01-06T16:18:23.043280",
+  "status": "failed",
+  "progress": 5
+}

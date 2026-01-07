@@ -150,33 +150,305 @@ class ProfileImportThread(QThread):
 
 
 class PickingThread(QThread):
-    """百应选品线程 - 打开百应进行智能选品"""
+    """百应选品线程 - 打开百应进行智能选品，登录后自动导航、筛选、选品并下载素材，然后搜索抖音视频"""
     log_signal = pyqtSignal(str)
+    progress_signal = pyqtSignal(str, int, int)
     finished_signal = pyqtSignal(bool, str)
 
-    def __init__(self, account_manager, account_id: str):
+    def __init__(self, account_manager, account_id: str, config=None):
         super().__init__()
         self.account_manager = account_manager
         self.account_id = account_id
+        self.config = config
 
     def run(self):
         try:
             from core.browser_manager import BrowserManager
+            from platforms.baiying.picker import BaiyingPicker
 
             browser_manager = BrowserManager(self.account_manager)
-            self.log_signal.emit("正在打开百应选品平台...")
+            self.log_signal.emit("正在打开百应登录页面...")
 
-            # 导航到百应智能选品页面
-            browser = browser_manager.navigate_to_platform(self.account_id, 'baiying')
+            # 创建 picker 实例
+            picker = BaiyingPicker(browser_manager, self.account_id, self.config)
+            picker.start()
 
-            # 导航到精选联盟/智能选品页面
-            self.log_signal.emit("正在进入智能选品...")
-            browser.get('https://buyin.jinritemai.com/dashboard/intellect-pick')
+            self.log_signal.emit("请在浏览器中完成登录...")
+            self.log_signal.emit("登录成功后将自动进入选品页面并应用筛选条件")
 
-            self.finished_signal.emit(True, "百应选品页面已打开，请在浏览器中选择产品")
+            # 等待登录并自动导航到选品页面
+            if not picker.wait_for_login_and_navigate(
+                timeout=300,
+                on_log=lambda msg: self.log_signal.emit(msg)
+            ):
+                self.finished_signal.emit(False, "登录超时或进入选品页面失败")
+                return
+
+            # 获取配置
+            n = self.config.get('picking.product_count', 3) if self.config else 3
+            output_base = self.config.get('output.base_dir', '') if self.config else ''
+            if not output_base:
+                output_base = str(Path.home() / "Downloads" / "douyin-automation")
+            output_dir = Path(output_base) / "materials"
+            output_dir.mkdir(parents=True, exist_ok=True)
+
+            self.log_signal.emit(f"\n开始自动选品，目标数量: {n}")
+            self.log_signal.emit(f"素材输出目录: {output_dir}")
+
+            # 自动选品并下载素材
+            products = picker.auto_pick_products(
+                n=n,
+                output_dir=output_dir,
+                on_log=lambda msg: self.log_signal.emit(msg),
+                on_progress=lambda step, cur, total: self.progress_signal.emit(step, cur, total)
+            )
+
+            if not products:
+                self.finished_signal.emit(False, "未能成功处理任何产品")
+                return
+
+            self.log_signal.emit(f"\n百应选品完成！成功处理 {len(products)} 个产品")
+
+            # ========== 阶段2: 关闭百应，打开抖音搜索视频 ==========
+            self.log_signal.emit("\n" + "=" * 60)
+            self.log_signal.emit("阶段2: 抖音视频搜索")
+            self.log_signal.emit("=" * 60)
+
+            # 关闭百应浏览器
+            self.log_signal.emit("关闭百应浏览器...")
+            picker.close()
+
+            # 为每个产品搜索并下载抖音视频
+            self._search_and_download_douyin_videos(
+                browser_manager, products, output_dir
+            )
+
+            self.finished_signal.emit(
+                True,
+                f"全流程完成！\n成功处理 {len(products)} 个产品\n素材已保存到: {output_dir}"
+            )
 
         except Exception as e:
-            self.finished_signal.emit(False, f"打开选品页面失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            self.finished_signal.emit(False, f"选品流程失败: {str(e)}")
+
+    def _search_and_download_douyin_videos(
+        self,
+        browser_manager,
+        products,
+        output_dir: Path
+    ):
+        """搜索并下载抖音视频
+
+        Args:
+            browser_manager: 浏览器管理器
+            products: 产品列表
+            output_dir: 输出目录
+        """
+        import re
+        import urllib.parse
+        from platforms.douyin.searcher import DouyinSearcher
+        from platforms.douyin.downloader import VideoDownloader
+
+        # 获取抖音视频筛选配置 (使用点号路径)
+        min_duration = self.config.get('douyin_video.min_duration', 45) if self.config else 45
+        max_duration = self.config.get('douyin_video.max_duration', 80) if self.config else 80
+        min_likes = self.config.get('douyin_video.min_likes', 1000) if self.config else 1000
+        download_count = self.config.get('douyin_video.download_count', 5) if self.config else 5
+        scroll_times = self.config.get('douyin_video.scroll_times', 3) if self.config else 3
+
+        self.log_signal.emit(f"抖音视频筛选条件:")
+        self.log_signal.emit(f"  - 时长: {min_duration}s - {max_duration}s")
+        self.log_signal.emit(f"  - 最低点赞: {min_likes}")
+        self.log_signal.emit(f"  - 每个产品下载数量: {download_count}")
+        self.log_signal.emit(f"  - 搜索滚动次数: {scroll_times}")
+
+        # 创建抖音搜索器
+        searcher = DouyinSearcher(browser_manager, self.account_id, self.config)
+        self.log_signal.emit("\n正在打开抖音...")
+        searcher.start()
+
+        # 统计信息
+        stats = {
+            'total': len(products),
+            'success': 0,
+            'no_video_found': 0,
+            'no_match': 0,
+            'error': 0
+        }
+
+        for i, product in enumerate(products):
+            try:
+                self.log_signal.emit(f"\n{'='*60}")
+                self.log_signal.emit(f"[{i+1}/{len(products)}] 搜索产品视频: {product.title[:40]}...")
+
+                self.progress_signal.emit(f"搜索视频 {i+1}/{len(products)}", i+1, len(products))
+
+                # 清理产品名称用于搜索 (移除特殊字符)
+                search_keyword = re.sub(r'[^\u4e00-\u9fa5a-zA-Z0-9\s]', '', product.title).strip()
+                if not search_keyword:
+                    self.log_signal.emit("  警告: 产品名称无法用于搜索")
+                    continue
+
+                # 构建抖音搜索URL
+                encoded_keyword = urllib.parse.quote(search_keyword)
+                search_url = f"https://www.douyin.com/search/{encoded_keyword}?type=video"
+                self.log_signal.emit(f"  搜索: {search_keyword[:50]}...")
+
+                # 搜索视频
+                videos = searcher.search_by_url(
+                    search_url,
+                    scroll_times=scroll_times,
+                    on_log=lambda msg: self.log_signal.emit(f"  {msg}")
+                )
+
+                if not videos:
+                    self.log_signal.emit("  ⚠️ 警告: 搜索未找到任何视频!")
+                    self.log_signal.emit(f"     搜索关键词: {search_keyword[:50]}")
+                    stats['no_video_found'] += 1
+                    continue
+
+                self.log_signal.emit(f"  找到 {len(videos)} 个视频，开始筛选...")
+
+                # 调试：显示前5个视频的数据
+                self.log_signal.emit(f"  [调试] 前5个视频数据:")
+                for idx, v in enumerate(videos[:5]):
+                    self.log_signal.emit(f"    [{idx+1}] 时长={v.duration}s, 点赞={v.likes}, 标题={v.title[:30]}...")
+
+                # 筛选视频
+                self.log_signal.emit(f"  筛选条件: 时长 {min_duration}-{max_duration}s, 最低 {min_likes} 赞")
+
+                # 检查是否大部分视频的点赞数都是0（数据获取问题）
+                videos_with_likes = [v for v in videos if v.likes > 0]
+                actual_min_likes = min_likes
+                if len(videos_with_likes) < len(videos) * 0.1:  # 如果90%以上的视频点赞数都是0
+                    self.log_signal.emit(f"  警告: 大部分视频点赞数为0，可能是数据获取问题，暂时忽略点赞筛选")
+                    actual_min_likes = 0  # 忽略点赞条件
+
+                filtered_videos = searcher.filter_videos(
+                    videos,
+                    min_duration=min_duration,
+                    max_duration=max_duration,
+                    min_likes=actual_min_likes,
+                    top_n=download_count
+                )
+
+                if not filtered_videos:
+                    self.log_signal.emit(f"  ⚠️ 警告: 筛选后无符合条件的视频!")
+                    self.log_signal.emit(f"     筛选条件: 时长 {min_duration}-{max_duration}s, 最低 {actual_min_likes} 赞")
+                    # 统计不符合原因
+                    duration_short = sum(1 for v in videos if v.duration < min_duration)
+                    duration_long = sum(1 for v in videos if v.duration > max_duration)
+                    likes_fail = sum(1 for v in videos if v.likes < actual_min_likes)
+                    self.log_signal.emit(f"     时长过短(<{min_duration}s): {duration_short} 个")
+                    self.log_signal.emit(f"     时长过长(>{max_duration}s): {duration_long} 个")
+                    if actual_min_likes > 0:
+                        self.log_signal.emit(f"     点赞不足(<{actual_min_likes}): {likes_fail} 个")
+                    stats['no_match'] += 1
+                    continue
+
+                self.log_signal.emit(f"  筛选出 {len(filtered_videos)} 个符合条件的视频:")
+                for j, v in enumerate(filtered_videos):
+                    self.log_signal.emit(f"    [{j+1}] {v.duration:.0f}s, {v.likes}赞, {v.title[:30]}...")
+
+                # 获取视频下载URL
+                self.log_signal.emit("  获取视频下载链接...")
+                for v in filtered_videos:
+                    if not v.download_url:
+                        searcher.get_video_download_url(v)
+
+                # 确定输出目录 (与产品素材同目录)
+                product_dir = self._get_product_dir(output_dir, product)
+
+                # 下载视频
+                self.log_signal.emit(f"  开始下载视频到: {product_dir}")
+                downloader = VideoDownloader(product_dir)
+
+                downloaded_videos = downloader.download_videos(
+                    filtered_videos,
+                    on_progress=lambda msg, cur, total: self.progress_signal.emit(f"下载视频 {cur}/{total}", cur, total),
+                    on_log=lambda msg: self.log_signal.emit(f"  {msg}")
+                )
+
+                self.log_signal.emit(f"  下载完成: {len(downloaded_videos)}/{len(filtered_videos)} 个视频")
+
+                # 更新产品信息 JSON，添加下载的视频信息
+                self._update_product_info_with_videos(product_dir, downloaded_videos)
+
+                if downloaded_videos:
+                    stats['success'] += 1
+
+            except Exception as e:
+                import traceback
+                self.log_signal.emit(f"  处理产品时出错: {e}")
+                traceback.print_exc()
+                stats['error'] += 1
+
+        # 关闭抖音浏览器
+        self.log_signal.emit("\n关闭抖音浏览器...")
+        searcher.close()
+
+        # 输出汇总统计
+        self.log_signal.emit("\n" + "=" * 60)
+        self.log_signal.emit("抖音视频搜索汇总:")
+        self.log_signal.emit("=" * 60)
+        self.log_signal.emit(f"  总产品数: {stats['total']}")
+        self.log_signal.emit(f"  ✓ 成功下载视频: {stats['success']} 个产品")
+        if stats['no_video_found'] > 0:
+            self.log_signal.emit(f"  ✗ 搜索无结果: {stats['no_video_found']} 个产品")
+        if stats['no_match'] > 0:
+            self.log_signal.emit(f"  ✗ 无匹配视频: {stats['no_match']} 个产品 (时长/点赞不符)")
+        if stats['error'] > 0:
+            self.log_signal.emit(f"  ✗ 处理出错: {stats['error']} 个产品")
+        self.log_signal.emit("=" * 60)
+
+    def _get_product_dir(self, output_dir: Path, product) -> Path:
+        """获取产品目录路径"""
+        import re
+        # 清理产品标题
+        title_clean = re.sub(r'[<>:"/\\|?*]', '_', product.title[:20])
+        dir_name = f"{product.product_id}_{title_clean}"
+        return output_dir / dir_name
+
+    def _update_product_info_with_videos(self, product_dir: Path, videos):
+        """更新产品信息 JSON，添加下载的视频信息"""
+        import json
+        from datetime import datetime
+
+        json_path = product_dir / "product_info.json"
+        if not json_path.exists():
+            return
+
+        try:
+            with open(json_path, 'r', encoding='utf-8') as f:
+                product_info = json.load(f)
+
+            # 添加抖音视频信息
+            product_info['douyin_videos'] = []
+            for v in videos:
+                product_info['douyin_videos'].append({
+                    'video_id': v.video_id,
+                    'title': v.title,
+                    'url': v.url,
+                    'duration': v.duration,
+                    'likes': v.likes,
+                    'comments': v.comments,
+                    'shares': v.shares,
+                    'author_name': v.author_name,
+                    'local_path': v.local_path,
+                    'download_url': v.download_url,
+                })
+
+            product_info['douyin_search_time'] = datetime.now().isoformat()
+
+            with open(json_path, 'w', encoding='utf-8') as f:
+                json.dump(product_info, f, ensure_ascii=False, indent=2)
+
+            self.log_signal.emit(f"  已更新产品信息: {json_path.name}")
+
+        except Exception as e:
+            self.log_signal.emit(f"  更新产品信息失败: {e}")
 
 
 class MainWindow(QMainWindow):
@@ -294,28 +566,6 @@ class MainWindow(QMainWindow):
         task_layout.addLayout(url_layout)
 
         layout.addWidget(task_group)
-
-        # 筛选设置
-        filter_group = QGroupBox("视频筛选")
-        filter_layout = QFormLayout(filter_group)
-
-        self.min_duration_input = QLineEdit()
-        self.min_duration_input.setText(str(self.config.get('douyin_video.min_duration', 45)))
-        filter_layout.addRow("最短时长(秒):", self.min_duration_input)
-
-        self.max_duration_input = QLineEdit()
-        self.max_duration_input.setText(str(self.config.get('douyin_video.max_duration', 80)))
-        filter_layout.addRow("最长时长(秒):", self.max_duration_input)
-
-        self.min_likes_input = QLineEdit()
-        self.min_likes_input.setText(str(self.config.get('douyin_video.min_likes', 1000)))
-        filter_layout.addRow("最低点赞:", self.min_likes_input)
-
-        self.download_count_input = QLineEdit()
-        self.download_count_input.setText(str(self.config.get('douyin_video.download_count', 5)))
-        filter_layout.addRow("下载数量:", self.download_count_input)
-
-        layout.addWidget(filter_group)
 
         # 进度显示
         progress_group = QGroupBox("任务进度")
@@ -443,22 +693,10 @@ class MainWindow(QMainWindow):
             self.account_combo.addItem("无账户 - 请先添加", None)
 
     def load_settings(self):
-        """加载设置"""
-        self.min_duration_input.setText(str(self.config.get('douyin_video.min_duration', 45)))
-        self.max_duration_input.setText(str(self.config.get('douyin_video.max_duration', 80)))
-        self.min_likes_input.setText(str(self.config.get('douyin_video.min_likes', 1000)))
-        self.download_count_input.setText(str(self.config.get('douyin_video.download_count', 5)))
-
-    def save_filter_settings(self):
-        """保存筛选设置"""
-        try:
-            self.config.set('douyin_video.min_duration', float(self.min_duration_input.text()))
-            self.config.set('douyin_video.max_duration', float(self.max_duration_input.text()))
-            self.config.set('douyin_video.min_likes', int(self.min_likes_input.text()))
-            self.config.set('douyin_video.download_count', int(self.download_count_input.text()))
-            self.config.save()
-        except ValueError:
-            pass
+        """从配置重新加载设置（设置对话框保存后调用）"""
+        # 配置已由 SettingsDialog 保存，这里只需要重新加载
+        # 主窗口不再显示设置输入框，所以无需更新 UI
+        pass
 
     def add_account(self):
         """添加账户"""
@@ -557,7 +795,7 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "错误", message)
 
     def start_picking(self):
-        """开始选品 - 打开百应智能选品页面"""
+        """开始选品 - 打开百应，登录后自动进入选品页面并应用筛选"""
         account_id = self.account_combo.currentData()
         if not account_id:
             QMessageBox.warning(self, "警告", "请先选择一个账户")
@@ -570,41 +808,45 @@ class MainWindow(QMainWindow):
 
         # 禁用开始按钮
         self.btn_start.setEnabled(False)
-        self.btn_start.setText("打开中...")
-        self.statusBar().showMessage("正在打开百应选品...")
+        self.btn_start.setText("选品中...")
+        self.statusBar().showMessage("正在启动百应选品...")
+
+        # 显示筛选配置
+        filter_config = self.config.get('filter', {})
+        picking_config = self.config.get('picking', {})
+        product_count = picking_config.get('product_count', 3)
 
         self.log("=" * 50)
         self.log("开始智能选品")
         self.log(f"账户: {account_id}")
+        self.log(f"目标产品数量: {product_count}")
+        self.log(f"筛选配置:")
+        self.log(f"  - 月销量: >= {filter_config.get('monthly_sales_min', 0)}")
+        self.log(f"  - 好评率: >= {filter_config.get('min_rating', 0)}%")
+        self.log(f"  - 价格范围: ¥{filter_config.get('price_min', 0)} - ¥{filter_config.get('price_max', 9999)}")
+        self.log(f"  - 佣金范围: ¥{filter_config.get('commission_min', 0)} - ¥{filter_config.get('commission_max', 9999)}")
         self.log("=" * 50)
 
-        # 在后台线程中打开百应
-        self.picking_thread = PickingThread(self.account_manager, account_id)
+        # 在后台线程中打开百应，传入 config 用于筛选
+        self.picking_thread = PickingThread(self.account_manager, account_id, self.config)
         self.picking_thread.log_signal.connect(self.log)
-        self.picking_thread.finished_signal.connect(self._on_picking_started)
+        self.picking_thread.progress_signal.connect(self.update_progress)
+        self.picking_thread.finished_signal.connect(self._on_picking_finished)
         self.picking_thread.start()
 
-    def _on_picking_started(self, success: bool, message: str):
-        """选品页面打开完成回调"""
+    def _on_picking_finished(self, success: bool, message: str):
+        """选品流程完成回调"""
         self.btn_start.setEnabled(True)
         self.btn_start.setText("开始选品")
 
         if success:
-            self.log(f"✓ {message}")
-            self.statusBar().showMessage("请在浏览器中选择产品，然后复制URL到下方输入框")
-            QMessageBox.information(
-                self, "提示",
-                "百应选品页面已打开！\n\n"
-                "操作步骤:\n"
-                "1. 在浏览器中浏览并选择产品\n"
-                "2. 复制产品页面的URL\n"
-                "3. 粘贴到「产品URL」输入框\n"
-                "4. 点击「运行URL」开始自动化流程"
-            )
+            self.log(f"\n✓ {message}")
+            self.statusBar().showMessage("选品完成")
+            QMessageBox.information(self, "选品完成", message)
         else:
-            self.log(f"✗ {message}")
-            self.statusBar().showMessage("打开选品页面失败")
-            QMessageBox.warning(self, "错误", message)
+            self.log(f"\n✗ {message}")
+            self.statusBar().showMessage("选品流程失败")
+            QMessageBox.warning(self, "选品失败", message)
 
     def start_task_with_url(self):
         """使用 URL 开始任务"""
@@ -617,9 +859,6 @@ class MainWindow(QMainWindow):
         if not product_url:
             QMessageBox.warning(self, "警告", "请输入产品URL")
             return
-
-        # 保存筛选设置
-        self.save_filter_settings()
 
         project_name = self.project_name_input.text().strip() or None
 
