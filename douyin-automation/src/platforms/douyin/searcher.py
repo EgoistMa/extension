@@ -253,23 +253,58 @@ class DouyinSearcher:
         return ""
 
     def _extract_videos(self) -> List[Video]:
-        """从页面提取视频信息"""
+        """从页面提取视频信息
+
+        优先使用 DOM 提取，因为 RENDER_DATA 中可能没有完整的统计数据
+        """
         videos = []
 
-        # 方法1: 从 RENDER_DATA 提取
-        try:
-            render_script = self.page.ele('#RENDER_DATA', timeout=2)
-            if render_script and render_script.text:
-                data = json.loads(unquote(render_script.text))
-                videos = self._parse_render_data(data)
-        except Exception:
-            pass
+        # 方法1: 优先从 DOM 提取（更可靠，有精确的选择器）
+        dom_videos = self._extract_from_dom()
+        if dom_videos:
+            videos = dom_videos
+            if self.debug:
+                print(f"[DouyinSearcher] DOM 提取到 {len(videos)} 个视频")
+                if videos:
+                    print(f"[DouyinSearcher] 第一个视频: 时长={videos[0].duration}s, 点赞={videos[0].likes}")
 
-        # 方法2: 从DOM提取
+        # 方法2: 如果 DOM 提取失败，尝试从 RENDER_DATA 提取
         if not videos:
-            videos = self._extract_from_dom()
+            try:
+                render_script = self.page.ele('#RENDER_DATA', timeout=2)
+                if render_script and render_script.text:
+                    data = json.loads(unquote(render_script.text))
+                    videos = self._parse_render_data(data)
+                    if self.debug:
+                        print(f"[DouyinSearcher] RENDER_DATA 提取到 {len(videos)} 个视频")
+            except Exception as e:
+                if self.debug:
+                    print(f"[DouyinSearcher] RENDER_DATA 解析失败: {e}")
 
         return videos
+
+    def _debug_print_render_data(self, data: dict, depth: int = 0) -> None:
+        """调试: 打印RENDER_DATA结构，找到视频数据"""
+        if depth > 10:
+            return
+
+        if isinstance(data, dict):
+            # 查找包含视频数据的键
+            for key in ['data', 'aweme_list', 'aweme_info', 'statistics']:
+                if key in data:
+                    print(f"[DEBUG] 找到键 '{key}': {type(data[key])}")
+                    if key == 'statistics':
+                        print(f"[DEBUG] statistics 内容: {data[key]}")
+                    elif key == 'aweme_info' and isinstance(data[key], dict):
+                        aweme = data[key]
+                        print(f"[DEBUG] aweme_info 键列表: {list(aweme.keys())[:20]}")
+                        if 'statistics' in aweme:
+                            print(f"[DEBUG] aweme.statistics: {aweme['statistics']}")
+
+            for value in data.values():
+                self._debug_print_render_data(value, depth + 1)
+        elif isinstance(data, list) and len(data) > 0:
+            self._debug_print_render_data(data[0], depth + 1)
 
     def _parse_render_data(self, data: dict, depth: int = 0) -> List[Video]:
         """递归解析RENDER_DATA"""
@@ -322,12 +357,19 @@ class DouyinSearcher:
                 duration_ms = aweme.get('duration', 0)
             duration = duration_ms / 1000 if duration_ms > 1000 else duration_ms
 
-            # 统计数据
+            # 统计数据 - 尝试多种可能的字段名
             statistics = aweme.get('statistics', {})
-            likes = statistics.get('digg_count', 0)
-            comments = statistics.get('comment_count', 0)
-            shares = statistics.get('share_count', 0)
-            plays = statistics.get('play_count', 0)
+            likes = (
+                statistics.get('digg_count', 0) or
+                statistics.get('like_count', 0) or
+                statistics.get('likeCount', 0) or
+                aweme.get('digg_count', 0) or
+                aweme.get('like_count', 0) or
+                0
+            )
+            comments = statistics.get('comment_count', 0) or statistics.get('commentCount', 0) or 0
+            shares = statistics.get('share_count', 0) or statistics.get('shareCount', 0) or 0
+            plays = statistics.get('play_count', 0) or statistics.get('playCount', 0) or 0
 
             # 作者信息
             author = aweme.get('author', {})
@@ -373,7 +415,14 @@ class DouyinSearcher:
             return None
 
     def _extract_from_dom(self) -> List[Video]:
-        """从DOM元素提取视频信息"""
+        """从DOM元素提取视频信息
+
+        使用稳定的结构选择器，而不是随机生成的CSS类名:
+        1. 通过 a[href*="/video/"] 定位视频卡片
+        2. 通过内容模式匹配 (如时长格式 XX:XX)
+        3. 通过SVG图标定位点赞数 (心形图标旁边的数字)
+        4. 通过结构位置 (父子关系) 定位标题和作者
+        """
         videos = []
 
         try:
@@ -381,9 +430,11 @@ class DouyinSearcher:
                 const videos = [];
                 const seenIds = new Set();
 
-                const videoLinks = document.querySelectorAll('a[href*="douyin.com/video/"], a[href*="/video/"]');
+                // 方法1: 通过搜索结果卡片容器查找
+                // 稳定选择器: 包含视频链接的卡片
+                const cards = document.querySelectorAll('li a[href*="/video/"]');
 
-                videoLinks.forEach(link => {
+                cards.forEach(link => {
                     const href = link.getAttribute('href') || '';
                     const match = href.match(/\\/video\\/(\\d+)/);
                     if (!match) return;
@@ -392,61 +443,128 @@ class DouyinSearcher:
                     if (seenIds.has(videoId)) return;
                     seenIds.add(videoId);
 
-                    let card = link.closest('.search-result-card') ||
-                               link.closest('[class*="search-result"]') ||
-                               link.parentElement?.parentElement?.parentElement?.parentElement;
+                    // 向上查找卡片容器 (li 或带 card 的 div)
+                    let card = link.closest('li') || link.parentElement;
+                    if (!card) return;
 
                     let title = '';
                     let author = '';
                     let duration = '';
                     let likes = '';
 
-                    if (card) {
-                        // 提取点赞数
-                        const svgElements = card.querySelectorAll('svg');
-                        for (const svg of svgElements) {
-                            const nextSpan = svg.nextElementSibling;
-                            if (nextSpan && nextSpan.tagName === 'SPAN') {
-                                const text = nextSpan.textContent?.trim() || '';
-                                if (text.match(/^[\\d.]+[万wk]?$/i)) {
+                    // ===== 提取时长 =====
+                    // 策略: 查找内容匹配时长格式 (XX:XX 或 X:XX:XX) 的元素
+                    const allDivs = card.querySelectorAll('div');
+                    for (const div of allDivs) {
+                        const text = div.textContent?.trim() || '';
+                        // 精确匹配时长格式，排除包含其他内容的元素
+                        if (/^\\d{1,2}:\\d{2}$/.test(text) || /^\\d{1,2}:\\d{2}:\\d{2}$/.test(text)) {
+                            duration = text;
+                            break;
+                        }
+                    }
+
+                    // ===== 提取点赞数 =====
+                    // 策略1: 查找SVG心形图标旁边的span
+                    const svgs = card.querySelectorAll('svg');
+                    for (const svg of svgs) {
+                        // 心形图标通常在点赞数旁边
+                        const parent = svg.parentElement;
+                        if (parent) {
+                            const sibling = parent.querySelector('span');
+                            if (sibling) {
+                                const text = sibling.textContent?.trim() || '';
+                                // 检查是否是数字格式 (可能带万、w、k)
+                                if (/^[\\d.]+[万wWkK]?$/.test(text)) {
+                                    likes = text;
+                                    break;
+                                }
+                            }
+                            // 也可能是svg的下一个兄弟元素
+                            const nextSibling = svg.nextElementSibling;
+                            if (nextSibling && nextSibling.tagName === 'SPAN') {
+                                const text = nextSibling.textContent?.trim() || '';
+                                if (/^[\\d.]+[万wWkK]?$/.test(text)) {
                                     likes = text;
                                     break;
                                 }
                             }
                         }
+                    }
 
-                        // 提取时长
-                        const allDivs = card.querySelectorAll('div');
+                    // 策略2: 如果没找到，查找aria-label包含点赞的元素
+                    if (!likes) {
+                        const likeElements = card.querySelectorAll('[aria-label*="赞"], [aria-label*="like"]');
+                        for (const el of likeElements) {
+                            const text = el.textContent?.trim() || '';
+                            if (/^[\\d.]+[万wWkK]?$/.test(text)) {
+                                likes = text;
+                                break;
+                            }
+                        }
+                    }
+
+                    // 策略3: 最后尝试查找底部信息栏中的span
+                    if (!likes) {
+                        const spans = card.querySelectorAll('span');
+                        for (const span of spans) {
+                            const text = span.textContent?.trim() || '';
+                            // 纯数字或带万/w/k的数字，且不是时长格式
+                            if (/^[\\d.]+[万wWkK]?$/.test(text) && !text.includes(':')) {
+                                likes = text;
+                                break;
+                            }
+                        }
+                    }
+
+                    // ===== 提取标题 =====
+                    // 策略1: 查找带有title属性的链接
+                    const titleLink = card.querySelector('a[title]');
+                    if (titleLink) {
+                        title = titleLink.getAttribute('title') || '';
+                    }
+
+                    // 策略2: 查找p标签或最长的文本内容
+                    if (!title) {
+                        const pTags = card.querySelectorAll('p');
+                        for (const p of pTags) {
+                            const text = p.textContent?.trim() || '';
+                            if (text.length > title.length && text.length > 10) {
+                                title = text.substring(0, 150);
+                            }
+                        }
+                    }
+
+                    // 策略3: 查找div中最长的文本 (排除时长和数字)
+                    if (!title) {
                         for (const div of allDivs) {
                             const text = div.textContent?.trim() || '';
-                            if (text.match(/^\\d{1,2}:\\d{2}(:\\d{2})?$/) && div.children.length === 0) {
-                                duration = text;
-                                break;
+                            if (text.length > 10 &&
+                                text.length < 200 &&
+                                text.length > title.length &&
+                                !/^\\d{1,2}:\\d{2}/.test(text) &&
+                                !/^[\\d.]+[万wWkK]?$/.test(text)) {
+                                title = text.substring(0, 150);
                             }
                         }
+                    }
 
-                        // 提取作者
-                        const atSpans = card.querySelectorAll('span');
-                        for (let i = 0; i < atSpans.length; i++) {
-                            if (atSpans[i].textContent?.trim() === '@' && atSpans[i + 1]) {
-                                author = atSpans[i + 1].textContent?.trim() || '';
-                                break;
-                            }
+                    // ===== 提取作者 =====
+                    // 策略1: 查找@符号开头的文本
+                    const allSpans = card.querySelectorAll('span');
+                    for (const span of allSpans) {
+                        const text = span.textContent?.trim() || '';
+                        if (text.startsWith('@')) {
+                            author = text.substring(1);
+                            break;
                         }
+                    }
 
-                        // 提取标题
-                        for (const div of allDivs) {
-                            if (div.children.length === 0) {
-                                const text = div.textContent?.trim() || '';
-                                if (text.length > 15 &&
-                                    !text.match(/^[\\d:]+$/) &&
-                                    !text.match(/^[\\d.]+[万wk]?$/i) &&
-                                    !text.startsWith('@')) {
-                                    if (!title || text.length > title.length) {
-                                        title = text.substring(0, 150);
-                                    }
-                                }
-                            }
+                    // 策略2: 查找作者链接
+                    if (!author) {
+                        const authorLink = card.querySelector('a[href*="/user/"]');
+                        if (authorLink) {
+                            author = authorLink.textContent?.trim() || '';
                         }
                     }
 

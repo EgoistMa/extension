@@ -29,6 +29,7 @@ class Config:
             "max_duration": 80.0,       # 最长时长(秒)
             "min_likes": 1000,          # 最低点赞数
             "download_count": 5,        # 下载数量
+            "scroll_times": 3,          # 搜索页滚动次数
         },
         # 剪映设置
         "jianying": {
@@ -69,6 +70,10 @@ class Config:
         "browser": {
             "headless": False,
             "debug": True,
+        },
+        # 选品设置
+        "picking": {
+            "product_count": 3,     # 要选择的产品数量 N
         },
     }
 

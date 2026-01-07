@@ -161,6 +161,7 @@ class VideoDownloader:
 
             total_size = int(response.headers.get('content-length', 0))
             downloaded = 0
+            last_reported_percent = -20  # 上次报告的百分比，初始-20确保0%时可以报告
 
             with open(output_path, 'wb') as f:
                 for chunk in response.iter_content(chunk_size=8192):
@@ -170,7 +171,11 @@ class VideoDownloader:
 
                         if total_size and on_progress:
                             percent = (downloaded / total_size) * 100
-                            on_progress(f"下载进度: {percent:.1f}%")
+                            # 每20%报告一次进度 (0%, 20%, 40%, 60%, 80%, 100%)
+                            if percent >= last_reported_percent + 20:
+                                last_reported_percent = int(percent // 20) * 20
+                                size_mb = total_size / 1024 / 1024
+                                on_progress(f"下载进度: {last_reported_percent}% ({size_mb:.1f}MB)")
 
             return True
 

@@ -9,10 +9,12 @@ baiying.js 文件命名格式:
 本模块简化命名为:
 - 图片: {product_id}_image_{index}.jpg
 - 视频: {product_id}_video.mp4
+- 产品信息: product_info.json
 """
 
 import os
 import re
+import json
 import time
 import requests
 from pathlib import Path
@@ -136,7 +138,82 @@ class MaterialDownloader:
             else:
                 log("视频下载失败")
 
+        # 保存产品信息 JSON 文件
+        self._save_product_info(product, product_dir, on_log)
+
         return product
+
+    def _save_product_info(
+        self,
+        product: Product,
+        output_dir: Path,
+        on_log: Optional[Callable[[str], None]] = None
+    ) -> bool:
+        """保存产品信息到 JSON 文件
+
+        Args:
+            product: 产品信息
+            output_dir: 输出目录
+            on_log: 日志回调
+
+        Returns:
+            是否保存成功
+        """
+        def log(msg: str):
+            if on_log:
+                on_log(msg)
+            print(f"[MaterialDownloader] {msg}")
+
+        try:
+            # 构建产品信息字典
+            product_info = {
+                # 基础信息
+                "product_id": product.product_id,
+                "title": product.title,
+                "url": product.url,
+
+                # 价格和佣金
+                "price": product.price,
+                "commission": product.commission,
+                "commission_rate": product.commission_rate,
+
+                # 销量信息
+                "monthly_sales": product.monthly_sales,
+                "total_sales": product.total_sales,
+
+                # 评价信息
+                "rating": product.rating,
+                "rating_percentage": product.rating_percentage,
+
+                # 店铺信息
+                "shop_name": product.shop_name,
+                "shop_score": product.shop_score,
+
+                # 素材信息
+                "main_image": product.main_image,
+                "images": product.images,
+                "video_url": product.video_url,
+
+                # 本地文件路径
+                "local_images": product.local_images,
+                "local_video": product.local_video,
+
+                # 元数据
+                "download_time": datetime.now().isoformat(),
+                "source": "baiying",
+            }
+
+            # 保存 JSON 文件
+            json_path = output_dir / "product_info.json"
+            with open(json_path, 'w', encoding='utf-8') as f:
+                json.dump(product_info, f, ensure_ascii=False, indent=2)
+
+            log(f"产品信息已保存: {json_path}")
+            return True
+
+        except Exception as e:
+            log(f"保存产品信息失败: {e}")
+            return False
 
     def _download_images(
         self,
@@ -298,6 +375,7 @@ class MaterialDownloader:
             # 写入文件 (对应 baiying.js 的分块读取)
             bytes_written = 0
             chunk_size = 8192  # 8KB chunks
+            last_reported_percent = -20  # 上次报告的百分比
 
             with open(output_path, 'wb') as f:
                 for chunk in response.iter_content(chunk_size=chunk_size):
@@ -305,13 +383,13 @@ class MaterialDownloader:
                         f.write(chunk)
                         bytes_written += len(chunk)
 
-                        # 进度日志 (对应 baiying.js 的进度显示)
+                        # 进度日志 - 每20%输出一次
                         if is_video and content_length and on_log:
                             total_size = int(content_length)
                             progress = bytes_written / total_size * 100
-                            # 每10%输出一次进度
-                            if bytes_written % (total_size // 10 + 1) < chunk_size:
-                                on_log(f"  下载进度: {progress:.1f}% ({bytes_written / 1024 / 1024:.2f}MB/{total_size / 1024 / 1024:.2f}MB)")
+                            if progress >= last_reported_percent + 20:
+                                last_reported_percent = int(progress // 20) * 20
+                                on_log(f"  下载进度: {last_reported_percent}% ({total_size / 1024 / 1024:.1f}MB)")
 
             # 验证完整性 (对应 baiying.js 的数据完整性检查)
             if content_length and bytes_written != int(content_length):

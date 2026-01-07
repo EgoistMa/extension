@@ -62,6 +62,17 @@ class SettingsDialog(QDialog):
         widget = QWidget()
         layout = QVBoxLayout(widget)
 
+        # 选品设置
+        picking_group = QGroupBox("选品设置")
+        picking_layout = QFormLayout(picking_group)
+
+        self.product_count = QSpinBox()
+        self.product_count.setRange(1, 20)
+        self.product_count.setToolTip("自动选品时要处理的产品数量")
+        picking_layout.addRow("产品数量 N:", self.product_count)
+
+        layout.addWidget(picking_group)
+
         # 百应筛选
         baiying_group = QGroupBox("百应产品筛选")
         baiying_layout = QFormLayout(baiying_group)
@@ -128,6 +139,10 @@ class SettingsDialog(QDialog):
         btn_browse_output.clicked.connect(lambda: self.browse_folder(self.output_dir))
         output_row.addWidget(btn_browse_output)
         douyin_layout.addRow("视频保存目录:", output_row)
+        self.scroll_times = QSpinBox()
+        self.scroll_times.setRange(1, 20)
+        self.scroll_times.setToolTip("搜索页面滚动次数，滚动越多加载的视频越多")
+        douyin_layout.addRow("滚动次数:", self.scroll_times)
 
         layout.addWidget(douyin_group)
         layout.addStretch()
@@ -353,6 +368,9 @@ class SettingsDialog(QDialog):
 
     def load_settings(self):
         """加载设置"""
+        # 选品设置
+        self.product_count.setValue(int(self.config.get('picking.product_count', 3)))
+
         # 筛选设置
         self.min_rating.setValue(int(self.config.get('filter.min_rating', 90)))
         self.commission_min.setValue(float(self.config.get('filter.commission_min', 3.5)))
@@ -365,6 +383,7 @@ class SettingsDialog(QDialog):
         self.max_duration.setValue(float(self.config.get('douyin_video.max_duration', 80)))
         self.min_likes.setValue(int(self.config.get('douyin_video.min_likes', 1000)))
         self.download_count.setValue(int(self.config.get('douyin_video.download_count', 5)))
+        self.scroll_times.setValue(int(self.config.get('douyin_video.scroll_times', 3)))
 
         # 剪映设置
         self.jianying_app_path.setText(self.config.get('jianying.app_path', ''))
@@ -415,6 +434,9 @@ class SettingsDialog(QDialog):
 
     def save_settings(self):
         """保存设置"""
+        # 选品设置
+        self.config.set('picking.product_count', self.product_count.value())
+
         # 筛选设置
         self.config.set('filter.min_rating', self.min_rating.value())
         self.config.set('filter.commission_min', self.commission_min.value())
@@ -427,6 +449,7 @@ class SettingsDialog(QDialog):
         self.config.set('douyin_video.max_duration', self.max_duration.value())
         self.config.set('douyin_video.min_likes', self.min_likes.value())
         self.config.set('douyin_video.download_count', self.download_count.value())
+        self.config.set('douyin_video.scroll_times', self.scroll_times.value())
 
         # 剪映设置
         self.config.set('jianying.app_path', self.jianying_app_path.text())
