@@ -4,6 +4,7 @@
 """
 
 import uuid
+import random
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, Callable, Dict, Any, List
@@ -166,6 +167,96 @@ class Pipeline:
                 self._step_douyin_upload(account_id, exported, product)
 
             # 完成
+            self.current_project.mark_completed()
+            self.checkpoint.save(self.current_project)
+            self.log("项目完成!")
+
+            return self.current_project
+
+        except Exception as e:
+            self.log(f"项目失败: {e}")
+            if self.current_project:
+                self.current_project.mark_failed(str(e))
+                self.checkpoint.save(self.current_project)
+            return self.current_project
+
+        finally:
+            self._is_running = False
+            self._close_browsers()
+
+    def run_from_videos(
+        self,
+        account_id: str,
+        video_paths: List[Path],
+        image_paths: Optional[List[Path]] = None,
+        project_name: Optional[str] = None,
+        output_dir: Optional[Path] = None,
+        product: Optional[Product] = None
+    ) -> Optional[Project]:
+        """从本地视频开始执行：剪映生成 -> 导出 -> 抖音上传"""
+        if self._is_running:
+            self.log("已有任务正在运行")
+            return None
+
+        self._is_running = True
+        self._should_stop = False
+
+        try:
+            project_id = str(uuid.uuid4())
+            project_name = project_name or f"project_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
+            if output_dir is None:
+                output_dir = Path(self.config.get('output.base_dir', '')) or Path.cwd() / "output"
+
+            project_dir = output_dir / project_name
+            project_dir.mkdir(parents=True, exist_ok=True)
+
+            self.current_project = Project(
+                project_id=project_id,
+                name=project_name,
+                account_id=account_id,
+                project_dir=str(project_dir)
+            )
+
+            if product is None:
+                product = Product(
+                    product_id="test_product",
+                    title="测试产品",
+                    url="",
+                    price=0.0,
+                    commission=0.0
+                )
+            self.current_project.set_product(product)
+
+            videos: List[Video] = []
+            for i, path in enumerate(video_paths, start=1):
+                p = Path(path)
+                if not p.exists():
+                    raise FileNotFoundError(f"视频不存在: {p}")
+                videos.append(Video(
+                    video_id=f"local_{i}",
+                    title=p.stem,
+                    url="",
+                    local_path=str(p)
+                ))
+
+            images: List[str] = []
+            if image_paths:
+                for path in image_paths:
+                    p = Path(path)
+                    if not p.exists():
+                        raise FileNotFoundError(f"图片不存在: {p}")
+                    images.append(str(p))
+
+            if not self._should_stop:
+                draft_path = self._step_jianying_generate(videos, project_name, project_dir, image_paths=images)
+
+            if not self._should_stop:
+                exported = self._step_jianying_export(draft_path, project_dir)
+
+            if not self._should_stop:
+                self._step_douyin_upload(account_id, exported, product)
+
             self.current_project.mark_completed()
             self.checkpoint.save(self.current_project)
             self.log("项目完成!")
@@ -349,7 +440,8 @@ class Pipeline:
         self,
         videos: List[Video],
         project_name: str,
-        output_dir: Path
+        output_dir: Path,
+        image_paths: Optional[List[str]] = None
     ) -> str:
         """步骤5: 生成剪映项目"""
         self.update_status(ProjectStatus.JIANYING_GENERATING, "生成剪映项目")
@@ -363,6 +455,7 @@ class Pipeline:
         draft_path = generator.generate_from_videos(
             videos,
             project_name,
+            image_files=image_paths,
             on_log=self.log
         )
 
@@ -383,7 +476,9 @@ class Pipeline:
         self.update_progress("导出视频", 6, 7)
 
         exporter = JianyingExporter(self.config)
-        output_path = str(output_dir / "export.mp4")
+        export_dir = Path(self.config.get('jianying.export_dir', '') or output_dir)
+        export_dir.mkdir(parents=True, exist_ok=True)
+        output_path = str(export_dir / "export.mp4")
 
         exported = exporter.export_draft(
             draft_path,
@@ -410,9 +505,9 @@ class Pipeline:
         self.update_status(ProjectStatus.UPLOADING, "上传视频")
         self.update_progress("上传视频", 7, 7)
 
-        # 生成发布信息
-        video.title = product.title[:30]
-        video.description = f"{product.title}\n价格: ¥{product.price}"
+        # 生成发布信息（暂时硬编码）
+        video.title = "测试标题"
+        video.description = "测试描述"
         video.tags = self._generate_tags(product)
 
         uploader = DouyinUploader(self.browser_manager, account_id, self.config)
@@ -424,7 +519,19 @@ class Pipeline:
                 if not uploader.wait_for_login():
                     raise Exception("登录超时")
 
-            success = uploader.upload_video(video, on_log=self.log)
+            cover_paths = product.local_images if product else []
+            if not cover_paths:
+                asset_dir = Path(r"C:\Users\21346\OneDrive\桌面\jianying_test")
+                if asset_dir.exists():
+                    image_exts = {'.jpg', '.jpeg', '.png', '.webp'}
+                    candidates = [
+                        str(p) for p in asset_dir.iterdir()
+                        if p.is_file() and p.suffix.lower() in image_exts
+                    ]
+                    if candidates:
+                        choice = random.choice(candidates)
+                        cover_paths = [choice, choice]
+            success = uploader.upload_video(video, cover_paths=cover_paths, on_log=self.log)
 
             if success:
                 self.update_status(ProjectStatus.PUBLISHED, "视频发布成功")

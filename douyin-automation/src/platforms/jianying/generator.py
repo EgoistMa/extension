@@ -9,6 +9,7 @@ import re
 import shutil
 import uuid
 import subprocess
+import random
 from pathlib import Path
 from datetime import datetime
 from typing import List, Optional, Callable
@@ -78,19 +79,7 @@ class JianyingGenerator:
         if not video_path.exists():
             return {'duration_us': 30000000, 'duration_ns': 30000000000, 'width': 1080, 'height': 1920}
 
-        # 方法1: 从文件名解析时长
-        filename = video_path.stem
-        duration_match = re.search(r'_(\d+)s_', filename)
-        if duration_match:
-            duration = int(duration_match.group(1))
-            return {
-                'duration_us': duration * 1000000,
-                'duration_ns': duration * 1000000000,
-                'width': 1080,
-                'height': 1920
-            }
-
-        # 方法2: 使用ffprobe
+        # 方法1: 使用ffprobe
         try:
             cmd = [
                 'ffprobe', '-v', 'quiet', '-print_format', 'json',
@@ -115,6 +104,59 @@ class JianyingGenerator:
                     }
         except Exception:
             pass
+
+        # 方法2: 使用ffmpeg解析时长（兼容缺少ffprobe的环境）
+        try:
+            cmd = ['ffmpeg', '-i', str(video_path)]
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+            text = result.stderr or result.stdout
+            duration_match = re.search(r'Duration: (\d+):(\d+):(\d+(?:\.\d+)?)', text)
+            if duration_match:
+                hours = float(duration_match.group(1))
+                minutes = float(duration_match.group(2))
+                seconds = float(duration_match.group(3))
+                duration = hours * 3600 + minutes * 60 + seconds
+                if duration > 0:
+                    return {
+                        'duration_us': int(duration * 1000000),
+                        'duration_ns': int(duration * 1000000000),
+                        'width': 1080,
+                        'height': 1920
+                    }
+        except Exception:
+            pass
+
+        # 方法3: Windows MediaPlayer 读取时长（无需ffprobe/ffmpeg）
+        if os.name == 'nt':
+            try:
+                safe_uri = video_path.absolute().as_uri().replace("'", "''")
+                cmd = [
+                    'powershell', '-NoProfile', '-Sta', '-Command',
+                    f"$uri='{safe_uri}';"
+                    "Add-Type -AssemblyName PresentationCore;"
+                    "$player=New-Object System.Windows.Media.MediaPlayer;"
+                    "$player.Open([Uri]$uri);"
+                    "for ($i=0; $i -lt 20 -and -not $player.NaturalDuration.HasTimeSpan; $i++) {"
+                    "Start-Sleep -Milliseconds 100;"
+                    "}"
+                    "$duration=$player.NaturalDuration.TimeSpan.TotalSeconds;"
+                    "$player.Close();"
+                    "Write-Output $duration;"
+                ]
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+                if result.returncode == 0:
+                    text = (result.stdout or "").strip()
+                    if text:
+                        duration = float(text)
+                        if duration > 0:
+                            return {
+                                'duration_us': int(duration * 1000000),
+                                'duration_ns': int(duration * 1000000000),
+                                'width': 1080,
+                                'height': 1920
+                            }
+            except Exception:
+                pass
 
         # 默认值
         return {'duration_us': 30000000, 'duration_ns': 30000000000, 'width': 1080, 'height': 1920}
@@ -201,6 +243,102 @@ class JianyingGenerator:
             "type": "speed"
         }
 
+    def _create_photo_material(self, image_path: str, width: int, height: int, duration_us: int) -> dict:
+        """创建照片素材对象（存入 materials.videos，type=photo）"""
+        material_id = self._generate_uuid()
+        image_path = str(Path(image_path).absolute())
+
+        return {
+            "aigc_type": "none",
+            "audio_fade": None,
+            "cartoon_path": "",
+            "category_id": "",
+            "category_name": "",
+            "check_flag": 63487,
+            "crop": {
+                "lower_left_x": 0.0, "lower_left_y": 1.0,
+                "lower_right_x": 1.0, "lower_right_y": 1.0,
+                "upper_left_x": 0.0, "upper_left_y": 0.0,
+                "upper_right_x": 1.0, "upper_right_y": 0.0
+            },
+            "crop_ratio": "free",
+            "crop_scale": 1.0,
+            "duration": duration_us * 1000,
+            "extra_type_option": 0,
+            "formula_id": "",
+            "height": height,
+            "id": material_id,
+            "intensifies_audio_path": "",
+            "intensifies_path": "",
+            "is_ai_generate_content": False,
+            "is_copyright": False,
+            "is_text_edit_overdub": False,
+            "is_unified_beauty_mode": False,
+            "local_id": "",
+            "local_material_id": "",
+            "material_id": "",
+            "material_name": Path(image_path).name,
+            "material_url": "",
+            "matting": {
+                "flag": 0, "has_use_quick_brush": False,
+                "has_use_quick_eraser": False, "interactiveTime": [],
+                "path": "", "strokes": []
+            },
+            "media_path": "",
+            "object_locked": None,
+            "origin_material_id": "",
+            "path": image_path,
+            "picture_from": "none",
+            "picture_set_category_id": "",
+            "picture_set_category_name": "",
+            "request_id": "",
+            "reverse_intensifies_path": "",
+            "reverse_path": "",
+            "smart_motion": None,
+            "source": 0,
+            "source_platform": 0,
+            "stable": {
+                "matrix_path": "",
+                "stable_level": 0,
+                "time_range": {"duration": 0, "start": 0}
+            },
+            "team_id": "",
+            "type": "photo",
+            "video_algorithm": {
+                "algorithms": [], "complement_frame_config": None,
+                "deflicker": None, "gameplay_configs": [],
+                "motion_blur_config": None, "noise_reduction": None,
+                "path": "", "quality_enhance": None, "time_range": None
+            },
+            "width": width
+        }
+
+    def _clone_segment(
+        self,
+        template: dict,
+        material_id: str,
+        start_time: int,
+        duration: int,
+        render_index: int
+    ) -> dict:
+        """克隆时间轴片段并替换关键字段"""
+        segment = json.loads(json.dumps(template))
+        segment["id"] = self._generate_uuid()
+        segment["material_id"] = material_id
+        segment["render_index"] = render_index
+        if not isinstance(segment.get("source_timerange"), dict):
+            segment["source_timerange"] = {"start": 0, "duration": duration}
+        else:
+            segment["source_timerange"]["start"] = 0
+            segment["source_timerange"]["duration"] = duration
+        if not isinstance(segment.get("target_timerange"), dict):
+            segment["target_timerange"] = {"start": start_time, "duration": duration}
+        else:
+            segment["target_timerange"]["start"] = start_time
+            segment["target_timerange"]["duration"] = duration
+        segment["speed"] = 1.0
+        return segment
+
     def _create_segment(
         self,
         material_id: str,
@@ -275,6 +413,8 @@ class JianyingGenerator:
         video_files: List[str],
         project_name: str,
         use_template_duration: bool = True,
+        image_files: Optional[List[str]] = None,
+        video_duration_overrides: Optional[dict] = None,
         on_log: Optional[Callable[[str], None]] = None
     ) -> str:
         """生成剪映项目
@@ -295,6 +435,19 @@ class JianyingGenerator:
 
         if not video_files:
             raise ValueError("视频文件列表不能为空")
+
+        def get_video_info(video_path: str) -> dict:
+            if video_duration_overrides:
+                key = str(Path(video_path).absolute())
+                override = video_duration_overrides.get(key)
+                if override and override > 0:
+                    return {
+                        'duration_us': int(override * 1000000),
+                        'duration_ns': int(override * 1000000000),
+                        'width': 1080,
+                        'height': 1920
+                    }
+            return self._get_video_info(video_path)
 
         # 创建项目目录
         project_dir = self.output_dir / project_name
@@ -322,7 +475,6 @@ class JianyingGenerator:
 
         # 清空素材
         content['materials']['videos'] = []
-        content['materials']['speeds'] = []
 
         # 获取或创建主轨道
         if content.get('tracks') and len(content['tracks']) > 0:
@@ -337,66 +489,144 @@ class JianyingGenerator:
             }
             content['tracks'] = [main_track]
 
-        # 第一遍: 获取视频信息
-        video_infos = []
-        total_original_duration_us = 0
-        for video_path in video_files:
-            video_info = self._get_video_info(video_path)
-            video_infos.append({
-                'path': video_path,
-                'info': video_info,
-                'duration_us': video_info['duration_us']
-            })
-            total_original_duration_us += video_info['duration_us']
-
-        log(f"视频总时长: {total_original_duration_us / 1000000:.1f}秒")
-
-        # 计算变速
-        if use_template_duration and template_duration_us > 0:
-            global_speed = total_original_duration_us / template_duration_us
-        else:
-            global_speed = 1.0
-        global_speed = max(0.1, min(100.0, global_speed))
-
-        speed_label = "快放" if global_speed > 1 else ("慢放" if global_speed < 1 else "正常")
-        log(f"变速: {speed_label} {global_speed:.4f}x")
-
-        # 第二遍: 添加素材和片段
-        current_time = 0
-        for i, video_data in enumerate(video_infos):
-            video_path = video_data['path']
-            video_info = video_data['info']
-            video_duration_us = video_data['duration_us']
-
-            # 创建素材
+        # 生成视频+图片时间线
+        if image_files:
+            if len(video_files) > 1:
+                log("检测到多个视频素材，仅使用第一个视频作为开头")
+            video_path = video_files[0]
+            video_info = get_video_info(video_path)
+            video_duration_us = video_info['duration_us']
             material = self._create_video_material(video_path, video_info)
             content['materials']['videos'].append(material)
 
-            # 计算目标时长
-            if use_template_duration and template_duration_us > 0:
-                target_duration_us = int(video_duration_us / global_speed)
-            else:
-                target_duration_us = video_duration_us
-
-            # 创建速度材料
-            speed_material = self._create_speed_material(global_speed)
-            content['materials']['speeds'].append(speed_material)
-
-            # 创建片段
-            segment = self._create_segment(
+            video_segment = self._create_segment(
                 material_id=material['id'],
-                start_time=current_time,
+                start_time=0,
                 source_duration=video_duration_us,
-                target_duration=target_duration_us,
-                speed=global_speed,
-                speed_material_id=speed_material['id'],
-                render_index=i
+                target_duration=video_duration_us,
+                speed=1.0,
+                speed_material_id=None,
+                render_index=0
             )
-            main_track['segments'].append(segment)
+            main_track['segments'].append(video_segment)
 
-            current_time += target_duration_us
+            current_time = video_duration_us
+            remaining_us = max(template_duration_us - current_time, 0)
+
+            try:
+                from PIL import Image
+            except Exception:
+                Image = None
+
+            images_cycle = list(image_files)
+            if not images_cycle:
+                log("未提供图片素材，跳过图片填充")
+            else:
+                image_idx = 0
+                while remaining_us > 0:
+                    img_path = Path(images_cycle[image_idx % len(images_cycle)]).absolute()
+                    image_idx += 1
+                    if not img_path.exists():
+                        continue
+
+                    width, height = 1080, 1920
+                    if Image:
+                        try:
+                            with Image.open(img_path) as im:
+                                width, height = im.size
+                        except Exception:
+                            pass
+
+                    duration_sec = random.randint(10, 20)
+                    duration_us = duration_sec * 1_000_000
+                    if duration_us > remaining_us:
+                        duration_us = remaining_us
+
+                    image_material = self._create_photo_material(str(img_path), width, height, duration_us)
+                    content['materials']['videos'].append(image_material)
+
+                    image_segment = self._create_segment(
+                        material_id=image_material['id'],
+                        start_time=current_time,
+                        source_duration=duration_us,
+                        target_duration=duration_us,
+                        speed=1.0,
+                        speed_material_id=None,
+                        render_index=len(main_track['segments'])
+                    )
+                    main_track['segments'].append(image_segment)
+
+                    current_time += duration_us
+                    remaining_us -= duration_us
+        else:
+            # 第一遍: 获取视频信息
+            video_infos = []
+            total_original_duration_us = 0
+            for video_path in video_files:
+                video_info = get_video_info(video_path)
+                video_infos.append({
+                    'path': video_path,
+                    'info': video_info,
+                    'duration_us': video_info['duration_us']
+                })
+                total_original_duration_us += video_info['duration_us']
+
+            log(f"视频总时长: {total_original_duration_us / 1000000:.1f}秒")
+
+            # 计算变速
+            if use_template_duration and template_duration_us > 0:
+                global_speed = total_original_duration_us / template_duration_us
+            else:
+                global_speed = 1.0
+            global_speed = max(0.1, min(100.0, global_speed))
+
+            speed_label = "快放" if global_speed > 1 else ("慢放" if global_speed < 1 else "正常")
+            log(f"变速: {speed_label} {global_speed:.4f}x")
+
+            # 第二遍: 添加素材和片段
+            current_time = 0
+            for i, video_data in enumerate(video_infos):
+                video_path = video_data['path']
+                video_info = video_data['info']
+                video_duration_us = video_data['duration_us']
+
+                # 创建素材
+                material = self._create_video_material(video_path, video_info)
+                content['materials']['videos'].append(material)
+
+                # 计算目标时长
+                if use_template_duration and template_duration_us > 0:
+                    target_duration_us = int(video_duration_us / global_speed)
+                else:
+                    target_duration_us = video_duration_us
+
+                # 创建速度材料
+                speed_material = self._create_speed_material(global_speed)
+                content['materials']['speeds'].append(speed_material)
+
+                # 创建片段
+                segment = self._create_segment(
+                    material_id=material['id'],
+                    start_time=current_time,
+                    source_duration=video_duration_us,
+                    target_duration=target_duration_us,
+                    speed=global_speed,
+                    speed_material_id=speed_material['id'],
+                    render_index=i
+                )
+                main_track['segments'].append(segment)
+
+                current_time += target_duration_us
+
+        # 随机打乱特效顺序（保留卡通脸轨道不变）
+        self._shuffle_effect_tracks(content)
+        # 随机交换贴纸位置（仅交换位置）
+        self._shuffle_sticker_positions(content)
 
         # 更新项目时长
+        current_time = main_track['segments'][-1]['target_timerange']['start'] + \
+            main_track['segments'][-1]['target_timerange']['duration'] if main_track['segments'] else 0
+
         content['duration'] = current_time
 
         # 保存draft_content.json
@@ -426,10 +656,73 @@ class JianyingGenerator:
 
         return str(project_dir)
 
+    def _shuffle_effect_tracks(self, content: dict) -> None:
+        """随机打乱特效轨道顺序，保留卡通脸轨道不变"""
+        tracks = content.get('tracks', [])
+        materials = content.get('materials', {})
+        effects = {m.get('id'): m for m in materials.get('video_effects', [])}
+
+        for track in tracks:
+            if track.get('type') != 'effect':
+                continue
+            segments = track.get('segments', [])
+            if not segments:
+                continue
+            is_cartoon_track = True
+            for seg in segments:
+                info = effects.get(seg.get('material_id'), {})
+                if info.get('name') != "卡通脸" and info.get('effect_id') != "10092161":
+                    is_cartoon_track = False
+                    break
+            if is_cartoon_track:
+                continue
+
+            random.shuffle(segments)
+            current = 0
+            for idx, seg in enumerate(segments):
+                tr = seg.get('target_timerange')
+                if not isinstance(tr, dict):
+                    tr = {"start": 0, "duration": 0}
+                    seg['target_timerange'] = tr
+                duration = tr.get('duration', 0)
+                tr['start'] = current
+                seg['render_index'] = idx
+                current += duration
+
+    def _shuffle_sticker_positions(self, content: dict) -> None:
+        """随机交换贴纸位置，仅变更位置"""
+        tracks = content.get('tracks', [])
+        sticker_segments = []
+        for track in tracks:
+            if track.get('type') != 'sticker':
+                continue
+            sticker_segments.extend(track.get('segments', []))
+
+        if not sticker_segments:
+            return
+
+        positions = []
+        for seg in sticker_segments:
+            clip = seg.get('clip') or {}
+            transform = clip.get('transform') or {}
+            positions.append({
+                "x": transform.get('x', 0.0),
+                "y": transform.get('y', 0.0)
+            })
+
+        random.shuffle(positions)
+
+        for seg, pos in zip(sticker_segments, positions):
+            clip = seg.setdefault('clip', {})
+            transform = clip.setdefault('transform', {})
+            transform['x'] = pos['x']
+            transform['y'] = pos['y']
+
     def generate_from_videos(
         self,
         videos: List[Video],
         project_name: str,
+        image_files: Optional[List[str]] = None,
         on_log: Optional[Callable[[str], None]] = None
     ) -> str:
         """从Video对象列表生成项目
@@ -443,4 +736,14 @@ class JianyingGenerator:
             项目路径
         """
         video_files = [v.local_path for v in videos if v.local_path and Path(v.local_path).exists()]
-        return self.generate_project(video_files, project_name, on_log=on_log)
+        duration_overrides = {}
+        for v in videos:
+            if v.local_path and v.duration and Path(v.local_path).exists():
+                duration_overrides[str(Path(v.local_path).absolute())] = v.duration
+        return self.generate_project(
+            video_files,
+            project_name,
+            image_files=image_files,
+            video_duration_overrides=duration_overrides,
+            on_log=on_log
+        )

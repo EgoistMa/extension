@@ -14,8 +14,13 @@ from PyQt6.QtGui import QAction, QFont
 
 from core.config import Config
 from core.account_manager import AccountManager
+from core.browser_manager import BrowserManager
 from workflow.pipeline import Pipeline
 from models.project import ProjectStatus
+from models.video import ExportedVideo
+from platforms.douyin import DouyinUploader
+
+TEST_ASSET_DIR = r"C:\Users\21346\OneDrive\桌面\jianying_test"
 
 
 class WorkerThread(QThread):
@@ -53,6 +58,85 @@ class WorkerThread(QThread):
 
         except Exception as e:
             self.finished_signal.emit(False, f"错误: {str(e)}")
+
+
+class JianyingUploadThread(QThread):
+    """测试线程 - 从剪映剪辑到上传抖音"""
+    log_signal = pyqtSignal(str)
+    progress_signal = pyqtSignal(str, int, int)
+    status_signal = pyqtSignal(str)
+    finished_signal = pyqtSignal(bool, str)
+
+    def __init__(self, pipeline: Pipeline, account_id: str, video_paths: list, image_paths: list, project_name: str = None):
+        super().__init__()
+        self.pipeline = pipeline
+        self.account_id = account_id
+        self.video_paths = video_paths
+        self.image_paths = image_paths
+        self.project_name = project_name
+
+    def run(self):
+        try:
+            self.pipeline.on_log = lambda msg: self.log_signal.emit(msg)
+            self.pipeline.on_progress = lambda step, cur, total: self.progress_signal.emit(step, cur, total)
+            self.pipeline.on_status_change = lambda p: self.status_signal.emit(p.status)
+
+            project = self.pipeline.run_from_videos(
+                account_id=self.account_id,
+                video_paths=self.video_paths,
+                image_paths=self.image_paths,
+                project_name=self.project_name
+            )
+
+            if project and project.status == ProjectStatus.COMPLETED.value:
+                self.finished_signal.emit(True, "测试流程完成!")
+            else:
+                error = project.error_message if project else "未知错误"
+                self.finished_signal.emit(False, f"测试失败: {error}")
+
+        except Exception as e:
+            self.finished_signal.emit(False, f"错误: {str(e)}")
+
+
+class UploadOnlyThread(QThread):
+    """测试线程 - 仅上传视频到抖音"""
+    log_signal = pyqtSignal(str)
+    finished_signal = pyqtSignal(bool, str)
+
+    def __init__(self, account_manager, config: Config, account_id: str, video_path: str, cover_paths: list):
+        super().__init__()
+        self.account_manager = account_manager
+        self.config = config
+        self.account_id = account_id
+        self.video_path = video_path
+        self.cover_paths = cover_paths
+
+    def run(self):
+        try:
+            browser_manager = BrowserManager(self.account_manager)
+            uploader = DouyinUploader(browser_manager, self.account_id, self.config)
+
+            uploader.start()
+
+            if not uploader.is_logged_in():
+                self.log_signal.emit("请在浏览器中登录抖音创作者中心...")
+                if not uploader.wait_for_login():
+                    self.finished_signal.emit(False, "登录超时")
+                    return
+
+            video = ExportedVideo(video_id="upload_test", local_path=self.video_path)
+            success = uploader.upload_video(video, cover_paths=self.cover_paths, on_log=self.log_signal.emit)
+            if success:
+                self.finished_signal.emit(True, "上传测试完成!")
+            else:
+                self.finished_signal.emit(False, "上传测试失败")
+        except Exception as e:
+            self.finished_signal.emit(False, f"错误: {str(e)}")
+        finally:
+            try:
+                uploader.close()
+            except Exception:
+                pass
 
 
 class BrowserThread(QThread):
@@ -460,6 +544,7 @@ class MainWindow(QMainWindow):
         self.account_manager = AccountManager()
         self.pipeline = Pipeline(self.account_manager, self.config)
         self.worker = None
+        self.test_worker = None
         self.browser_thread = None  # 浏览器操作线程
         self.profile_thread = None  # Profile 导入/导出线程
         self.picking_thread = None  # 选品线程
@@ -604,6 +689,18 @@ class MainWindow(QMainWindow):
         btn_layout.addWidget(self.btn_stop)
 
         layout.addLayout(btn_layout)
+
+        # 测试按钮
+        test_row = QHBoxLayout()
+        btn_test = QPushButton("测试剪映→上传")
+        btn_test.clicked.connect(self.start_test_jianying_upload)
+        test_row.addWidget(btn_test)
+
+        btn_upload_test = QPushButton("测试上传")
+        btn_upload_test.clicked.connect(self.start_test_upload_only)
+        test_row.addWidget(btn_upload_test)
+
+        layout.addLayout(test_row)
 
         # 设置按钮
         btn_settings = QPushButton("设置")
@@ -892,6 +989,93 @@ class MainWindow(QMainWindow):
             self.pipeline.stop()
         self.log("正在停止任务...")
         self.statusBar().showMessage("正在停止...")
+
+    def start_test_jianying_upload(self):
+        """测试从剪映生成到上传的流程"""
+        account_id = self.account_combo.currentData()
+        if not account_id:
+            QMessageBox.warning(self, "警告", "请先选择一个账户")
+            return
+
+        asset_dir = Path(TEST_ASSET_DIR)
+        if not asset_dir.exists():
+            QMessageBox.warning(self, "错误", f"测试素材目录不存在:\n{asset_dir}")
+            return
+
+        video_exts = {'.mp4', '.mov', '.mkv'}
+        image_exts = {'.jpg', '.jpeg', '.png', '.webp'}
+
+        video_paths = [p for p in asset_dir.iterdir() if p.is_file() and p.suffix.lower() in video_exts]
+        image_paths = [p for p in asset_dir.iterdir() if p.is_file() and p.suffix.lower() in image_exts]
+
+        if not video_paths:
+            QMessageBox.warning(self, "错误", "测试素材目录中未找到视频文件")
+            return
+        if not image_paths:
+            QMessageBox.warning(self, "错误", "测试素材目录中未找到图片文件")
+            return
+
+        self.btn_start.setEnabled(False)
+        self.btn_run_url.setEnabled(False)
+        self.btn_stop.setEnabled(True)
+        self.progress_bar.setValue(0)
+        self.status_label.setText("状态: 正在启动...")
+
+        self.log("=" * 50)
+        self.log("开始测试流程: 剪映 → 导出 → 上传")
+        self.log(f"账户: {account_id}")
+        self.log("=" * 50)
+
+        self.pipeline = Pipeline(self.account_manager, self.config)
+        self.test_worker = JianyingUploadThread(
+            self.pipeline, account_id, video_paths, image_paths, project_name="test_jianying_upload"
+        )
+        self.test_worker.log_signal.connect(self.log)
+        self.test_worker.progress_signal.connect(self.update_progress)
+        self.test_worker.status_signal.connect(self.update_status)
+        self.test_worker.finished_signal.connect(self.task_finished)
+        self.test_worker.start()
+
+    def start_test_upload_only(self):
+        """测试仅上传视频"""
+        account_id = self.account_combo.currentData()
+        if not account_id:
+            QMessageBox.warning(self, "警告", "请先选择一个账户")
+            return
+
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "选择要上传的视频", "", "视频文件 (*.mp4 *.mov *.mkv)"
+        )
+        if not file_path:
+            return
+
+        cover_paths = []
+        asset_dir = Path(TEST_ASSET_DIR)
+        if asset_dir.exists():
+            image_exts = {'.jpg', '.jpeg', '.png', '.webp'}
+            cover_paths = [
+                str(p) for p in asset_dir.iterdir()
+                if p.is_file() and p.suffix.lower() in image_exts
+            ]
+
+        self.btn_start.setEnabled(False)
+        self.btn_run_url.setEnabled(False)
+        self.btn_stop.setEnabled(True)
+        self.progress_bar.setValue(0)
+        self.status_label.setText("状态: 正在启动...")
+
+        self.log("=" * 50)
+        self.log("开始测试流程: 仅上传")
+        self.log(f"账户: {account_id}")
+        self.log(f"视频: {file_path}")
+        self.log("=" * 50)
+
+        self.upload_worker = UploadOnlyThread(
+            self.account_manager, self.config, account_id, file_path, cover_paths
+        )
+        self.upload_worker.log_signal.connect(self.log)
+        self.upload_worker.finished_signal.connect(self.task_finished)
+        self.upload_worker.start()
 
     def task_finished(self, success: bool, message: str):
         """任务完成回调"""
